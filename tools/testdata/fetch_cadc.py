@@ -6,6 +6,7 @@ import json
 import os
 import time
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -175,6 +176,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--role", action="append", default=[])
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument("--retries", type=int, default=3)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="parallel CADC transfers (clamped to 1-8)",
+    )
     return parser
 
 
@@ -189,14 +196,22 @@ def main() -> None:
         product_ids=set(args.product_id),
         roles=set(args.role),
     )
-    with httpx.Client(follow_redirects=True, timeout=httpx.Timeout(120.0)) as client:
-        for artifact in artifacts:
-            path = artifact_path(cache_dir, manifest["manifest_id"], artifact)
-            if args.verify_only:
-                verify_artifact(path, artifact)
-            else:
+    def process(artifact: dict[str, Any]) -> tuple[str, Path]:
+        path = artifact_path(cache_dir, manifest["manifest_id"], artifact)
+        if args.verify_only:
+            verify_artifact(path, artifact)
+        else:
+            with httpx.Client(
+                follow_redirects=True,
+                timeout=httpx.Timeout(120.0),
+            ) as client:
                 download_artifact(client, artifact, path, retries=max(0, args.retries))
-            print(f"verified {artifact['product_id']} -> {path}")
+        return str(artifact["product_id"]), path
+
+    workers = max(1, min(8, int(args.workers), len(artifacts)))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for product_id, path in executor.map(process, artifacts):
+            print(f"verified {product_id} -> {path}")
     receipt = write_receipt(cache_dir, manifest, artifacts)
     print(f"receipt {receipt}")
 

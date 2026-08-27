@@ -12,6 +12,7 @@ from tests.adapters.espadons import (
     robust_continuum_rms,
     wavelength_resolution_offsets,
 )
+from tools.testdata.fetch_cadc import load_manifest
 
 pytestmark = pytest.mark.golden
 
@@ -48,14 +49,84 @@ def test_l3_polarization_and_null_thresholds(candidate_root: Path) -> None:
         path = candidate_root / "l3" / f"{stokes}.npz"
         assert path.is_file(), f"missing L3 comparison bundle {path}"
         with np.load(path, allow_pickle=False) as bundle:
-            uncertainty = np.asarray(bundle["reference_uncertainty"])
             mask = np.asarray(bundle["mask"], dtype=bool)
             for field in ("polarization", "null1", "null2"):
                 median, upper = normalized_residual_quantiles(
                     np.asarray(bundle[f"candidate_{field}"]),
                     np.asarray(bundle[f"reference_{field}"]),
-                    uncertainty,
+                    np.asarray(bundle[f"comparison_uncertainty_{field}"]),
                     mask,
                 )
                 assert median <= 1.5, f"{stokes} {field} median residual {median}"
                 assert upper <= 5.0, f"{stokes} {field} p99 residual {upper}"
+
+
+def _read_l3_bundle(path: Path) -> dict[str, np.ndarray]:
+    assert path.is_file(), f"missing L3 comparison bundle {path}"
+    with np.load(path, allow_pickle=False) as bundle:
+        return {name: np.asarray(bundle[name]) for name in bundle.files}
+
+
+def _assert_l3_residual_contract(
+    label: str,
+    bundle: dict[str, np.ndarray],
+) -> None:
+    mask = np.asarray(bundle["mask"], dtype=bool)
+    for field in ("polarization", "null1", "null2"):
+        median, upper = normalized_residual_quantiles(
+            bundle[f"candidate_{field}"],
+            bundle[f"reference_{field}"],
+            bundle[f"comparison_uncertainty_{field}"],
+            mask,
+        )
+        assert median <= 1.5, f"{label} {field} median residual {median}"
+        assert upper <= 5.0, f"{label} {field} p99 residual {upper}"
+
+
+def test_hr_5501_non_polarized_standard(candidate_root: Path) -> None:
+    bundle = _read_l3_bundle(candidate_root / "l3" / "HR_5501_V.npz")
+    _assert_l3_residual_contract("HR 5501 V", bundle)
+    mask = np.asarray(bundle["mask"], dtype=bool)
+    valid = mask & np.isfinite(bundle["raw_candidate_polarization"])
+    assert np.count_nonzero(valid) > 0
+    pseudo_polarization = abs(float(np.median(bundle["raw_candidate_polarization"][valid])))
+    assert pseudo_polarization <= 1e-3
+    zeros = np.zeros_like(bundle["reference_uncertainty"])
+    for field in ("null1", "null2"):
+        median, upper = normalized_residual_quantiles(
+            bundle[f"candidate_{field}"],
+            zeros,
+            bundle[f"candidate_uncertainty_{field}"],
+            mask,
+        )
+        assert median <= 1.5, f"HR 5501 {field} noise median {median}"
+        assert upper <= 5.0, f"HR 5501 {field} noise p99 {upper}"
+
+
+def test_hd_236928_linear_standard_sign_structure_and_angle(
+    candidate_root: Path,
+) -> None:
+    q_bundle = _read_l3_bundle(candidate_root / "l3" / "HD_236928_Q.npz")
+    u_bundle = _read_l3_bundle(candidate_root / "l3" / "HD_236928_U.npz")
+    _assert_l3_residual_contract("HD 236928 Q", q_bundle)
+    _assert_l3_residual_contract("HD 236928 U", u_bundle)
+
+    q_candidate = float(q_bundle["r_band_median"])
+    u_candidate = float(u_bundle["r_band_median"])
+    manifest = load_manifest(Path("tests/data-manifests/cadc-espadons-hd-236928-v1.yaml"))
+    standard = manifest["freeze"]["polarization_standard"]
+    reference_angle_deg = float(standard["position_angle_deg"])
+    reference_amplitude = float(standard["degree_percent"]) / 100.0
+    angle_rad = np.deg2rad(2.0 * reference_angle_deg)
+    q_reference = reference_amplitude * np.cos(angle_rad)
+    u_reference = reference_amplitude * np.sin(angle_rad)
+
+    assert np.sign(q_candidate) == np.sign(q_reference)
+    assert np.sign(u_candidate) == np.sign(u_reference)
+    assert 0.03 <= np.hypot(q_candidate, u_candidate) <= 0.10
+    candidate_angle_deg = float(np.rad2deg(0.5 * np.arctan2(u_candidate, q_candidate)) % 180.0)
+    angle_delta_deg = abs((candidate_angle_deg - reference_angle_deg + 90.0) % 180.0 - 90.0)
+    # This is a sign/angle sentinel, not a claim of absolute continuum
+    # polarimetry.  ESPaDOnS continuum systematics are much larger than the
+    # catalog uncertainty, so the release gate deliberately uses 2 degrees.
+    assert angle_delta_deg <= 2.0

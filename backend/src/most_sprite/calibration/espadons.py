@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -82,7 +83,9 @@ class _BuildResult:
     provenance: dict[str, Any]
 
 
-def _combine(frames: list[CalibrationFrame], *, kind: str) -> CalibrationFrame:
+def _combine(
+    frames: Sequence[CalibrationFrame | np.ndarray], *, kind: str
+) -> CalibrationFrame:
     result = combine_calibration(
         frames,
         {
@@ -153,10 +156,10 @@ def _build(
     bias_frames = [adapter.preprocess(item.path)[0] for item in by_role["BIAS"]]
     master_bias = _combine(bias_frames, kind="MASTER_BIAS")
     del bias_frames
-    flat_frames = [
-        adapter.preprocess(item.path, master_bias=master_bias.data)[0]
-        for item in by_role["FLAT"]
-    ]
+    flat_frames: list[CalibrationFrame | np.ndarray] = []
+    for index, item in enumerate(by_role["FLAT"]):
+        frame = adapter.preprocess(item.path, master_bias=master_bias.data)[0]
+        flat_frames.append(frame if index == 0 else frame.data)
     master_flat = _combine(flat_frames, kind="MASTER_FLAT")
     del flat_frames
     trace_set = trace_espadons_orders(master_flat)
@@ -248,9 +251,9 @@ def _build(
         ],
         "algorithms": {
             "overscan": "espadons_olapa_preprocess_v1",
-            "trace": "espadons_curved_trace_v1",
+            "trace": "espadons_curved_trace_v2",
             "extraction": "espadons_optimal_extraction_v1",
-            "wavelength": "espadons_thar_global_2d_v1",
+            "wavelength": "espadons_thar_global_2d_v2",
         },
     }
     bundle = ESPaDOnSCalibrationBundle(
@@ -467,6 +470,12 @@ async def approve_calibration_set(
     if calibration_set is None:
         raise SpriteError(
             "CALIBRATION_SET_NOT_FOUND", "calibration set does not exist", status_code=404
+        )
+    if calibration_set.status == ConfigurationStatus.APPROVED:
+        raise SpriteError(
+            "CALIBRATION_ALREADY_APPROVED",
+            "an approved CalibrationSet is immutable",
+            status_code=409,
         )
     if calibration_set.qc_flag == QCFlag.FAIL:
         raise SpriteError(

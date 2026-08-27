@@ -1,28 +1,34 @@
 # 验证矩阵
 
-`make verify` 执行静态检查、类型检查、GAMSE 来源哈希检查、普通单元/属性/集成测试、前端组件
-测试、生产构建、Playwright 垂直切片以及 Compose 配置校验。
+`make verify` 执行 Python/TypeScript 静态与类型检查、GAMSE 来源哈希检查、普通单元/属性/集成测试、前端组件测试、生产构建、Playwright 垂直切片以及 Compose 配置校验。`make smoke-4k` 另行验证 4096×4096 L0 原子提交与 FITS checksum。CI 构建 API/Web 容器并拒绝任何运行时 `import gamse`。
 
-普通 CI 使用缩小的固定种子合成数据；`make smoke-4k` 至少执行一次 4096×4096 L0 原子提交与
-FITS 校验。CI 还会构建 API 和 Web 容器，拒绝任何 `import gamse`。
+`.github/workflows/cadc-regression.yml` 是缓存化的手动/每周正式科学任务：从 CADC 官方地址校验三份冻结 manifest，分别用空数据库重放 AD Leo、HR 5501 和 HD 236928，独立复跑 HR 5501 证明科学身份可重复，随后构建仅测试用比较包并强制全部发布门槛。工作流不依赖生产产品或外部候选 URI。
 
-`.github/workflows/cadc-regression.yml` 是缓存化的手动/每周任务。CADC 文件只下载到 runner 的
-外部缓存并逐项校验大小和 MD5。冻结参考元数据始终验证；数值候选包通过受控变量提供时，执行
-波长、连续谱以及 P/N1/N2 的门槛比较。该结果仅为回归测试，不替代 MOST commissioning。
-
-## 2026-08-26 基线验收记录
+## 2026-08-27 发布候选验收记录
 
 | 检查项 | 结果 |
 | --- | --- |
-| Python 单元、属性、契约与集成测试 | 48 passed；4 个需要外部 CADC 缓存/候选包的 golden test 按设计 skipped |
-| Python 规范与类型 | Ruff 通过；Mypy 对 69 个源码文件通过 |
-| 前端组件测试与构建 | 6 passed；TypeScript 类型检查及 Vite 生产构建通过 |
-| Playwright 观察员流程 | POL_Q 与 NONPOL 共 2 条浏览器端到端测试通过 |
-| PostgreSQL 迁移 | `0001_initial → 0002_processing_claim` 通过；全新 SQLite 验证库升级及 Alembic drift check 通过 |
-| Compose 运行态 | API/Web/PostgreSQL/Redis 健康；控制、采集、快视、调度、Worker 和设备模拟器持续运行且无错误日志 |
-| POL_Q 产品唯一性 | 4×L0、4×QUICKLOOK、4×L1、4×L2、1×L3；URI 全部唯一，重复处理请求返回同一 run |
+| Python 单元、属性、契约与集成测试 | 71 passed；无普通测试跳过 |
+| CADC/CFHT golden 回归 | 7 passed：3 项冻结参考/来源检查 + 4 项 L2/L3/标准星门槛 |
+| Python 规范与类型 | Ruff 通过；Mypy 对 80 个源码文件通过；GAMSE 双边来源/资产/目标哈希通过 |
+| 前端组件测试与构建 | 11 passed；TypeScript 类型检查、lint 和 Vite 生产构建通过 |
+| Playwright 流程 | 中英文/主题持久化、POL_Q、NONPOL 共 3 条浏览器端到端测试通过 |
+| 数据库迁移 | 全新 SQLite 从 `0001_initial` 增量升级到 `0004_api_idempotency`；Alembic drift check 无新增操作 |
+| 导入与发布安全 | 路径穿越/符号链接逃逸、SOURCE_CHANGED、重复提交、授权下载、标定审批、WARNING 理由、模拟发布阻断均通过集成测试 |
 | 完整探测器提交 | 4096×4096 模拟帧完成不可变 L0 写入、FITS schema 与 checksum 验证 |
-| GAMSE 隔离 | 固定来源哈希清单通过；运行时代码不存在 `import gamse` |
+| Compose/容器 | Compose 配置通过；API/Web 镜像由 GitHub CI 构建（本次本机 Docker daemon 未运行） |
+| GAMSE 隔离 | 固定 commit、来源文件、OLAPA 灯谱 URI/MD5/SHA-256 和目标哈希通过；运行时代码不存在 `import gamse` 或下载 |
 
-完整 CADC 数值回归没有在本次本地验收中冒充执行：它需要显式准备的外部缓存和冻结 reduction
-候选包。CI 工作流会在这些输入存在时才启用对应门槛测试。
+## 最终源码公开数据重放
+
+| 数据集 | CalibrationSet QC | 寻迹 RMS | ThAr RMS | 产品 |
+| --- | --- | ---: | ---: | ---: |
+| AD Leo Q/U/V | WARNING：10 张 flat 少于推荐数量，必须管理员记录接受理由 | 0.0193 pixel | 111.3 m/s | 48：12 L0、12 L1、12 L2、12 L3 |
+| HR 5501 V | PASS | 0.0441 pixel | 89.0 m/s | 16：各级 4 个 |
+| HD 236928 Q/U | PASS | 0.0470 pixel | 93.4 m/s | 32：各级 8 个 |
+
+三套数据合计从空数据库生成 96 个标准产品；所有 alignment 有效率约 98.70%。独立 HR 5501 重放的 input/calibration/parameter/code/product 哈希与全部数值 FITS 指纹完全相同。
+
+12 个 AD Leo L2 的波长偏差为 0.0087–0.0152 分辨单元，连续谱稳健 RMS 为 1.03%–1.16%。六个偏振序列的 P/N1/N2 最差归一化残差中位数为 0.735、最差 99 分位为 2.99。HR 5501 伪 V 中位幅度为 `3.41×10⁻⁴`；HD 236928 得到 Q=`−0.06044`、U=`−0.01947`、幅度 6.35%、偏振角 98.93°，冻结目录角为 98.14°。
+
+详细输入、比较规则和可复现命令见 [`science-validation/cadc-regression.md`](science-validation/cadc-regression.md)。这些结果是谱线偏振发布门槛，不是绝对连续谱偏振精度声明，也不替代 MOST 现场 commissioning。

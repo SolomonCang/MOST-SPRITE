@@ -16,6 +16,13 @@ const colors: Record<string, string> = {
   SKY: "var(--chart-violet)",
   ALPHA: "var(--chart-warning)",
   FLUX: "var(--chart-primary)",
+  VAR: "var(--chart-warning)",
+  ERR_I: "var(--chart-warning)",
+  ERR_P: "var(--chart-warning)",
+  ERR_N1: "var(--chart-violet)",
+  ERR_N2: "var(--chart-success)",
+  ERR_TARGET: "var(--chart-primary)",
+  ERR_SKY: "var(--chart-violet)",
 };
 
 function finiteValues(values: Array<number | null>): number[] {
@@ -37,28 +44,40 @@ export function SpectrumChart({ columns, series, compact = false }: SpectrumChar
       minimum -= 1;
       maximum += 1;
     }
+    const wavelengthColumn = (columns.WAVE ?? []).slice(0, length);
+    const wavelength = finiteValues(wavelengthColumn);
+    const xMinimum = wavelength.length ? Math.min(...wavelength) : 0;
+    const xMaximum = wavelength.length ? Math.max(...wavelength) : Math.max(0, length - 1);
+    const usesWavelength = wavelength.length > 1 && xMaximum > xMinimum;
+    const orders = (columns.ORDER ?? []).slice(0, length);
     const paths = selected.map((name) => {
       const segments: string[] = [];
       let penDown = false;
       columns[name].slice(0, length).forEach((value, index) => {
-        if (value === null || !Number.isFinite(value)) {
+        const wavelengthValue = wavelengthColumn[index];
+        if (
+          value === null
+          || !Number.isFinite(value)
+          || (usesWavelength && (wavelengthValue === null || !Number.isFinite(wavelengthValue)))
+        ) {
           penDown = false;
           return;
         }
-        const x = 68 + (index / Math.max(1, length - 1)) * 690;
+        if (index > 0 && orders.length && orders[index] !== orders[index - 1]) penDown = false;
+        const xCoordinate = usesWavelength ? Number(wavelengthValue) : index;
+        const x = 68 + ((xCoordinate - xMinimum) / Math.max(Number.EPSILON, xMaximum - xMinimum)) * 690;
         const y = 24 + (1 - (value - minimum) / (maximum - minimum)) * 208;
         segments.push(`${penDown ? "L" : "M"}${x.toFixed(2)},${y.toFixed(2)}`);
         penDown = true;
       });
       return { name, path: segments.join(" ") };
     });
-    const wavelength = finiteValues((columns.WAVE ?? []).slice(0, length));
     return {
       minimum,
       maximum,
       paths,
-      xMinimum: wavelength.length ? Math.min(...wavelength) : 0,
-      xMaximum: wavelength.length ? Math.max(...wavelength) : Math.max(0, length - 1),
+      xMinimum,
+      xMaximum,
     };
   }, [columns, series]);
 

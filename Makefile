@@ -43,7 +43,9 @@ frontend-build:
 	cd frontend && pnpm build
 
 fetch-cadc:
-	uv run python tools/testdata/fetch_cadc.py
+	@for manifest in tests/data-manifests/cadc-espadons-*.yaml; do \
+		uv run python tools/testdata/fetch_cadc.py --manifest "$$manifest"; \
+	done
 
 smoke-4k:
 	uv run sprite-smoke-l0 --full-frame

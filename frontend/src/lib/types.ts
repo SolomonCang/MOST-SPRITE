@@ -17,6 +17,17 @@ export type SequenceStatus =
   | "SUCCEEDED"
   | "FAILED";
 export type ProductLevel = "QUICKLOOK" | "L0" | "L1" | "L2" | "L3";
+export type ImportStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+export type ProcessingStatus =
+  | "QUEUED"
+  | "RUNNING"
+  | "WAITING_CALIBRATION"
+  | "BLOCKED"
+  | "SUCCEEDED"
+  | "FAILED";
+export type ConfigurationStatus = "UNVERIFIED" | "APPROVED" | "RETIRED";
+export type QCFlag = "PASS" | "WARNING" | "FAIL" | "SIMULATION_ONLY";
+export type PublicationStatus = "DRAFT" | "PUBLISHED" | "WITHDRAWN";
 
 export interface CurrentUser {
   subject: string;
@@ -97,11 +108,15 @@ export interface Product {
   exposure_id: string | null;
   level: ProductLevel;
   mode: DataMode;
-  uri: string;
   size: number;
   sha256: string;
   schema_version: string;
-  qc_flag: string;
+  qc_flag: QCFlag;
+  instrument: string | null;
+  detector_profile: string | null;
+  calibration_set_id: string | null;
+  publication_status: PublicationStatus;
+  download_url: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
 }
@@ -109,16 +124,102 @@ export interface Product {
 export interface ProcessingRun {
   id: string;
   sequence_id: string;
-  status: string;
+  status: ProcessingStatus;
   progress: number;
   input_hash: string;
   calibration_hash: string;
   parameter_hash: string;
   code_hash: string;
+  calibration_set_id: string | null;
+  parameter_version: string;
   error_code: string | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ImportInspectionRequest {
+  root_id: string;
+  relative_path: string;
+  instrument: "ESPADONS";
+}
+
+export interface ImportInspection {
+  id: string;
+  root_id: string;
+  relative_path: string;
+  instrument: string;
+  status: ImportStatus;
+  manifest_sha256: string | null;
+  inventory: Array<Record<string, unknown>>;
+  groups: Array<Record<string, unknown>>;
+  calibration_summary: Record<string, unknown>;
+  warnings: Array<Record<string, unknown>>;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ImportBatch {
+  id: string;
+  inspection_id: string;
+  manifest_sha256: string;
+  status: ImportStatus;
+  sequence_ids: string[];
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalibrationRun {
+  id: string;
+  import_batch_id: string;
+  status: ProcessingStatus;
+  progress: number;
+  parameter_version: string;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalibrationSet {
+  id: string;
+  calibration_run_id: string;
+  import_batch_id: string;
+  instrument: string;
+  detector: string;
+  observing_night: string;
+  readout_mode: string;
+  status: ConfigurationStatus;
+  calibration_hash: string;
+  qc_flag: QCFlag;
+  qc: Record<string, unknown>;
+  warnings: Array<Record<string, unknown>>;
+  approved_by: string | null;
+  approved_at: string | null;
+  approval_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProcessingRunRequest {
+  sequence_id: string;
+  calibration_set_id: string;
+  parameter_version: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface ProcessingRunAccepted {
+  processing_run_id: string;
+  status: ProcessingStatus;
+}
+
+export interface DownloadedProduct {
+  blob: Blob;
+  filename: string;
 }
 
 export interface QCResult {
@@ -134,11 +235,11 @@ export interface QCResult {
 export interface LineageNode {
   id: string;
   kind: "PRODUCT" | "RAW_FILE";
-  level: ProductLevel;
+  level?: ProductLevel;
   schema_version?: string;
   sha256: string;
   qc_flag?: string;
-  uri: string;
+  download_url?: string | null;
   exposure_id?: string;
 }
 

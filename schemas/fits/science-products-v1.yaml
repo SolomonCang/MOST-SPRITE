@@ -16,6 +16,10 @@ common_primary_keywords:
   - CALVER
   - MODVER
   - MUELLVER
+  - INSTRUME
+  - DETECTOR
+  - CALSETID
+  - POLCONT
   - QCFLAG
   - CHECKSUM
   - DATASUM
@@ -24,12 +28,18 @@ products:
     required_hdus: [SCI, VAR, DQ]
   L2:
     channel_role_keyword: CHANNEL_ROLE
+    required_primary_keywords: [RESAMPN]
+    espadons_resampling_count: 0
     required_columns: [ORDER, PIXEL, WAVE, FLUX, VAR, DQ]
     polarimetric_roles: [O_BEAM, E_BEAM]
     nonpolar_roles: [TARGET, SKY, DISABLED]
   L3_POLAR:
+    required_hdus: [SPECTRUM, SEQUENCE, PROVENANCE, RESAMPLE_COVARIANCE]
+    required_primary_keywords: [RESAMPN]
+    espadons_resampling_count: 1
     required_columns: [WAVE, I, P, N1, N2, ERR_I, ERR_P, ERR_N1, ERR_N2, DQ]
     covariance_columns: [COV_P_N1, COV_P_N2, COV_N1_N2]
+    resampling_covariance_columns: [I_LAG1, P_LAG1, N1_LAG1, N2_LAG1]
   L3_NONPOL:
     required_columns: [WAVE, TARGET, SKY, ALPHA, I, ERR_TARGET, ERR_SKY, ERR_ALPHA, ERR_I, DQ]
     forbidden_columns: [P, N1, N2, ERR_P, ERR_N1, ERR_N2, COV_P_N1, COV_P_N2, COV_N1_N2]

@@ -2,12 +2,20 @@ import type {
   AcceptedCommand,
   Alarm,
   ApiErrorBody,
+  CalibrationRun,
+  CalibrationSet,
   CurrentUser,
+  DownloadedProduct,
   Exposure,
+  ImportBatch,
+  ImportInspection,
+  ImportInspectionRequest,
   InstrumentSnapshot,
   Lineage,
   Preview,
   ProcessingRun,
+  ProcessingRunAccepted,
+  ProcessingRunRequest,
   Product,
   QCResult,
   Sequence,
@@ -61,6 +69,35 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
+function downloadFilename(response: Response, productId: string): string {
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) return decodeURIComponent(encoded.replace(/^"|"$/g, ""));
+  const plain = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+  return plain ?? `${productId}.fits`;
+}
+
+async function downloadProduct(productId: string): Promise<DownloadedProduct> {
+  const response = await fetch(`${API_URL}/api/v1/products/${productId}/download`, {
+    headers: identityHeaders(),
+  });
+  if (!response.ok) {
+    const fallback: ApiErrorBody = {
+      code: "DOWNLOAD_FAILED",
+      message: response.statusText || "Download failed",
+      details: {},
+      correlation_id: response.headers.get("X-Correlation-ID") ?? "unknown",
+      retryable: response.status >= 500,
+    };
+    const body = (await response.json().catch(() => fallback)) as ApiErrorBody;
+    throw new ApiError(response.status, body);
+  }
+  return {
+    blob: await response.blob(),
+    filename: downloadFilename(response, productId),
+  };
+}
+
 export const api = {
   me: () => apiFetch<CurrentUser>("/api/v1/me"),
   instrument: () => apiFetch<InstrumentSnapshot>("/api/v1/instrument/state"),
@@ -93,7 +130,90 @@ export const api = {
       `/api/v1/products${sequenceId ? `?sequence_id=${encodeURIComponent(sequenceId)}` : ""}`,
     ),
   processingRuns: () => apiFetch<ProcessingRun[]>("/api/v1/processing-runs"),
+  processingRun: (id: string) =>
+    apiFetch<ProcessingRun>(`/api/v1/processing-runs/${id}`),
+  createProcessingRun: (
+    payload: ProcessingRunRequest,
+    key = makeIdempotencyKey("process"),
+  ) =>
+    apiFetch<ProcessingRunAccepted>("/api/v1/processing-runs", {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: JSON.stringify(payload),
+    }),
+  importInspections: () =>
+    apiFetch<ImportInspection[]>("/api/v1/import-inspections"),
+  importInspection: (id: string) =>
+    apiFetch<ImportInspection>(`/api/v1/import-inspections/${id}`),
+  createImportInspection: (
+    payload: ImportInspectionRequest,
+    key = makeIdempotencyKey("inspect"),
+  ) =>
+    apiFetch<ImportInspection>("/api/v1/import-inspections", {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: JSON.stringify(payload),
+    }),
+  imports: () => apiFetch<ImportBatch[]>("/api/v1/imports"),
+  importBatch: (id: string) => apiFetch<ImportBatch>(`/api/v1/imports/${id}`),
+  createImport: (
+    inspection: Pick<ImportInspection, "id" | "manifest_sha256">,
+    key = makeIdempotencyKey("import"),
+  ) => {
+    if (!inspection.manifest_sha256) throw new Error("Inspection has no manifest");
+    return apiFetch<ImportBatch>("/api/v1/imports", {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: JSON.stringify({
+        inspection_id: inspection.id,
+        manifest_sha256: inspection.manifest_sha256,
+      }),
+    });
+  },
+  calibrationRuns: () =>
+    apiFetch<CalibrationRun[]>("/api/v1/calibration-runs"),
+  calibrationRun: (id: string) =>
+    apiFetch<CalibrationRun>(`/api/v1/calibration-runs/${id}`),
+  createCalibrationRun: (
+    importBatchId: string,
+    parameterVersion: string,
+    key = makeIdempotencyKey("calibrate"),
+  ) =>
+    apiFetch<CalibrationRun>("/api/v1/calibration-runs", {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: JSON.stringify({
+        import_batch_id: importBatchId,
+        parameter_version: parameterVersion,
+      }),
+    }),
+  calibrationSets: () => apiFetch<CalibrationSet[]>("/api/v1/calibration-sets"),
+  calibrationSet: (id: string) =>
+    apiFetch<CalibrationSet>(`/api/v1/calibration-sets/${id}`),
+  approveCalibrationSet: (
+    id: string,
+    reason: string,
+    acceptWarnings: boolean,
+    key = makeIdempotencyKey("approve-calibration"),
+  ) =>
+    apiFetch<CalibrationSet>(`/api/v1/calibration-sets/${id}/approve`, {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: JSON.stringify({ reason, accept_warnings: acceptWarnings }),
+    }),
   preview: (id: string) => apiFetch<Preview>(`/api/v1/products/${id}/preview`),
   qc: (id: string) => apiFetch<QCResult[]>(`/api/v1/products/${id}/qc`),
   lineage: (id: string) => apiFetch<Lineage>(`/api/v1/products/${id}/lineage`),
+  downloadProduct,
+  productAction: (
+    id: string,
+    action: "publish" | "withdraw",
+    reason: string | null,
+    key = makeIdempotencyKey(action),
+  ) =>
+    apiFetch<Product>(`/api/v1/products/${id}:${action}`, {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: JSON.stringify({ reason }),
+    }),
 };

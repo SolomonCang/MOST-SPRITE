@@ -21,6 +21,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from most_sprite.api.idempotency import (
+    bind_idempotent_resource,
+    find_idempotent_resource,
+)
 from most_sprite.auth import authenticate_identity, current_user, require_roles
 from most_sprite.calibration import approve_calibration_set, ensure_calibration_run
 from most_sprite.config import get_settings
@@ -637,9 +641,29 @@ async def approve_calibration(
     payload: CalibrationSetApproval,
     request: Request,
     session: SessionDep,
-    _: IdempotencyKey,
+    idempotency_key: IdempotencyKey,
     user: CurrentUser = Depends(require_roles(Role.ADMINISTRATOR)),
-) -> CalibrationSet:
+) -> CalibrationSet | dict[str, Any]:
+    idempotency_payload = {
+        "calibration_set_id": str(set_id),
+        **payload.model_dump(mode="json"),
+    }
+    existing = await find_idempotent_resource(
+        session,
+        scope="calibration-set-approve",
+        principal=user.subject,
+        key=idempotency_key,
+        payload=idempotency_payload,
+    )
+    if existing is not None:
+        calibration_set = await session.get(CalibrationSet, existing.resource_id)
+        if calibration_set is None:
+            raise SpriteError(
+                "IDEMPOTENCY_RESOURCE_GONE",
+                "the resource recorded for this request no longer exists",
+                status_code=410,
+            )
+        return calibration_set
     before = await session.get(CalibrationSet, str(set_id))
     before_status = before.status if before is not None else None
     calibration_set = await approve_calibration_set(
@@ -663,6 +687,15 @@ async def approve_calibration(
             "accepted_warnings": payload.accept_warnings,
         },
     )
+    await bind_idempotent_resource(
+        session,
+        scope="calibration-set-approve",
+        principal=user.subject,
+        key=idempotency_key,
+        payload=idempotency_payload,
+        resource_type="CalibrationSet",
+        resource_id=calibration_set.id,
+    )
     return calibration_set
 
 
@@ -674,7 +707,23 @@ async def create_processing_run(
     idempotency_key: IdempotencyKey,
     user: CurrentUser = Depends(require_roles(Role.DATA_REDUCER)),
 ) -> dict[str, Any]:
-    del idempotency_key  # the full immutable identity below is stronger than the request key
+    idempotency_payload = payload.model_dump(mode="json")
+    existing = await find_idempotent_resource(
+        session,
+        scope="processing-run-create",
+        principal=user.subject,
+        key=idempotency_key,
+        payload=idempotency_payload,
+    )
+    if existing is not None:
+        run = await session.get(ProcessingRun, existing.resource_id)
+        if run is None:
+            raise SpriteError(
+                "IDEMPOTENCY_RESOURCE_GONE",
+                "the resource recorded for this request no longer exists",
+                status_code=410,
+            )
+        return {"processing_run_id": run.id, "status": run.status}
     run = await ensure_processing_run(
         session,
         str(payload.sequence_id),
@@ -697,6 +746,15 @@ async def create_processing_run(
         resource_type="ProcessingRun",
         resource_id=run.id,
         correlation_id=_correlation(request),
+    )
+    await bind_idempotent_resource(
+        session,
+        scope="processing-run-create",
+        principal=user.subject,
+        key=idempotency_key,
+        payload=idempotency_payload,
+        resource_type="ProcessingRun",
+        resource_id=run.id,
     )
     return {"processing_run_id": run.id, "status": run.status}
 
@@ -922,10 +980,32 @@ async def product_action(
     action: Literal["publish", "withdraw"],
     request: Request,
     session: SessionDep,
-    _: IdempotencyKey,
+    idempotency_key: IdempotencyKey,
     payload: ProductPublicationRequest | None = None,
     user: CurrentUser = Depends(require_roles(Role.ADMINISTRATOR)),
-) -> Product:
+) -> Product | dict[str, Any]:
+    reason = payload.reason if payload is not None else None
+    idempotency_payload = {
+        "product_id": str(product_id),
+        "action": action,
+        "reason": reason,
+    }
+    existing = await find_idempotent_resource(
+        session,
+        scope="product-publication",
+        principal=user.subject,
+        key=idempotency_key,
+        payload=idempotency_payload,
+    )
+    if existing is not None:
+        product = await session.get(Product, existing.resource_id)
+        if product is None:
+            raise SpriteError(
+                "IDEMPOTENCY_RESOURCE_GONE",
+                "the resource recorded for this request no longer exists",
+                status_code=410,
+            )
+        return product
     product = await session.scalar(
         select(Product).where(Product.id == str(product_id)).with_for_update()
     )
@@ -940,7 +1020,6 @@ async def product_action(
             status_code=409,
         )
     before = product.publication_status
-    reason = payload.reason if payload is not None else None
     if action == "publish":
         if product.level != ProductLevel.L3:
             raise SpriteError(
@@ -1004,6 +1083,15 @@ async def product_action(
         correlation_id=_correlation(request),
         before={"publication_status": before},
         after={"publication_status": product.publication_status},
+    )
+    await bind_idempotent_resource(
+        session,
+        scope="product-publication",
+        principal=user.subject,
+        key=idempotency_key,
+        payload=idempotency_payload,
+        resource_type="Product",
+        resource_id=product.id,
     )
     return product
 

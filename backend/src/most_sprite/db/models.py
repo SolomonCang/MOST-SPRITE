@@ -103,6 +103,27 @@ class Command(Base, TimestampMixin):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class ApiIdempotencyRecord(Base):
+    __tablename__ = "api_idempotency_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "scope",
+            "principal_hash",
+            "key_hash",
+            name="uq_api_idempotency_scope_principal_key",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    scope: Mapped[str] = mapped_column(String(64), index=True)
+    principal_hash: Mapped[str] = mapped_column(String(64))
+    key_hash: Mapped[str] = mapped_column(String(64))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    resource_type: Mapped[str] = mapped_column(String(64))
+    resource_id: Mapped[str] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Exposure(Base, TimestampMixin):
     __tablename__ = "exposures"
 

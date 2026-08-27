@@ -24,9 +24,27 @@ from most_sprite.errors import SpriteError
 from most_sprite.pipeline.echelle.models import SpectrumSet, WavelengthSolution
 
 _LIGHT_SPEED_M_S = 299_792_458.0
-_BOOTSTRAP_MLAMBDA_NM = 22_646.0
-_BOOTSTRAP_DISPERSION_NM = -797.0
 _SOURCE_COMMIT = "4d91ead6d8380b75a5a445c2dae78429bc23e0c9"
+_BOOTSTRAP_REFERENCE = {
+    "file_id": "2495167c",
+    "md5": "4a030086d401540004a14fb607795ad2",
+    "sha256": "7c9cc8dae64dcfa677ac921e96a5ee3f04c02415f6fcdcc63db5727a005e3ce6",
+}
+# Degree-two fit of m*lambda to the immutable GAMSE OLAPA reference lamp,
+# expressed in this module's normalized (pixel, order) coordinates and
+# _powers(2) ordering.  It is only an identification bootstrap: every output
+# coefficient is re-fit from the selected same-night ThAr exposure.
+_BOOTSTRAP_COEFFICIENTS = np.asarray(
+    [
+        22643.82942575951,
+        908.0067373985538,
+        -147.0939726089756,
+        -1.551829830541917,
+        4.615527053413751,
+        -0.421869421884266,
+    ],
+    dtype=np.float64,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,9 +247,7 @@ def solve_espadons_thar(spectra: SpectrumSet) -> ESPaDOnSWavelengthCalibration:
             role_offsets[role].append(offsets[role])
 
     degree = 2
-    coefficients = np.zeros(len(_powers(degree)), dtype=np.float64)
-    coefficients[_powers(degree).index((0, 0))] = _BOOTSTRAP_MLAMBDA_NM
-    coefficients[_powers(degree).index((1, 0))] = _BOOTSTRAP_DISPERSION_NM
+    coefficients = _BOOTSTRAP_COEFFICIENTS.copy()
     rng = np.random.default_rng(5)
     stages = (
         (14.0, 0.50, 2, 30_000),
@@ -261,15 +277,20 @@ def solve_espadons_thar(spectra: SpectrumSet) -> ESPaDOnSWavelengthCalibration:
             line_intensity = intensities[in_order]
             if line_wavelength.size < 2:
                 continue
+            if not np.all(np.diff(model_m_lambda) > 0):
+                raise SpriteError(
+                    "CALIBRATION_MISMATCH",
+                    "OLAPA wavelength bootstrap must increase along canonical dispersion pixels",
+                )
             predicted = np.interp(
                 order * line_wavelength,
-                model_m_lambda[::-1],
-                pixels[::-1],
+                model_m_lambda,
+                pixels,
             )
             detected, strength = peak_data[order]
             if detected.size == 0:
                 continue
-            right = np.clip(np.searchsorted(-predicted, -detected), 1, predicted.size - 1)
+            right = np.clip(np.searchsorted(predicted, detected), 1, predicted.size - 1)
             selected = np.where(
                 np.abs(predicted[right] - detected)
                 < np.abs(predicted[right - 1] - detected),
@@ -317,19 +338,22 @@ def solve_espadons_thar(spectra: SpectrumSet) -> ESPaDOnSWavelengthCalibration:
     used_velocity = residual_velocity[final_mask]
     rms_m_s = float(np.sqrt(np.mean(used_velocity**2)))
     used_orders = sorted({int(value) for value in final_records[final_mask, 0]})
-    # The ten-coefficient degree-three surface must be over-constrained in
-    # both dimensions.  Require at least 25 lines and direct anchors in 40%
-    # of the OLAPA orders; remaining orders are interpolated by the global
-    # physical m-lambda surface and the low line count remains a visible QC
-    # warning.  External golden-data wavelength residuals are the release
-    # gate for absolute accuracy.
-    minimum_orders = max(10, int(np.ceil(0.4 * len(orders))))
-    if final_mask.sum() < 25 or len(used_orders) < minimum_orders:
+    # The ten-coefficient degree-three surface must be strongly
+    # over-constrained in both dimensions.  A wrong order/orientation can
+    # produce a deceptively small residual from a few accidental aliases, so
+    # require hundreds of same-night ThAr associations spanning 75% of OLAPA.
+    # Remaining edge orders may be interpolated by the global physical
+    # m-lambda surface; external golden-data residuals remain the release gate
+    # for absolute accuracy.
+    minimum_lines = 200
+    minimum_orders = max(30, int(np.ceil(0.75 * len(orders))))
+    if final_mask.sum() < minimum_lines or len(used_orders) < minimum_orders:
         raise SpriteError(
             "CALIBRATION_MISSING",
             "ThAr identification did not cover enough OLAPA orders",
             details={
                 "line_count": int(final_mask.sum()),
+                "minimum_line_count": minimum_lines,
                 "order_count": len(used_orders),
                 "minimum_order_count": minimum_orders,
             },
@@ -374,7 +398,7 @@ def solve_espadons_thar(spectra: SpectrumSet) -> ESPaDOnSWavelengthCalibration:
         )
     ]
     warning_codes: list[str] = []
-    if final_mask.sum() < 80:
+    if final_mask.sum() < 500:
         warning_codes.append("THAR_LINE_COUNT_LOW")
     if rms_m_s > 150.0:
         warning_codes.append("WAVELENGTH_RMS_EXCEEDS_TARGET")
@@ -396,12 +420,14 @@ def solve_espadons_thar(spectra: SpectrumSet) -> ESPaDOnSWavelengthCalibration:
         unit="nm",
         config_version=spectra.config_version,
         provenance={
-            "algorithm": "espadons_thar_global_2d_v1",
+            "algorithm": "espadons_thar_global_2d_v2",
             "source_commit": _SOURCE_COMMIT,
             "line_list": _line_list_path().name,
             "bootstrap": {
-                "m_lambda_nm": _BOOTSTRAP_MLAMBDA_NM,
-                "dispersion_nm": _BOOTSTRAP_DISPERSION_NM,
+                **_BOOTSTRAP_REFERENCE,
+                "role": "line-identification-only",
+                "fit_degree": 2,
+                "coefficients_m_lambda_nm": _BOOTSTRAP_COEFFICIENTS.tolist(),
             },
             "polynomial_degree": degree,
             "qc": qc,

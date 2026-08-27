@@ -63,9 +63,7 @@ def validate_science_fits(path: Path) -> None:
                 if hdu.header.get("CHANNEL_ROLE")
             }
             if actual_roles != required_roles:
-                raise ValueError(
-                    f"L2 channel roles differ: {actual_roles} != {required_roles}"
-                )
+                raise ValueError(f"L2 channel roles differ: {actual_roles} != {required_roles}")
             required_columns = {"ORDER", "PIXEL", "WAVE", "FLUX", "VAR", "DQ"}
             for hdu in hdul[1:]:
                 columns = set(hdu.columns.names)
@@ -74,6 +72,8 @@ def validate_science_fits(path: Path) -> None:
                         f"L2 channel {hdu.name} is missing columns: "
                         f"{sorted(required_columns - columns)}"
                     )
+            if header["INSTRUME"] == "ESPADONS" and int(header.get("RESAMPN", -1)) != 0:
+                raise ValueError("ESPADONS L2 must remain on its native unresampled grid")
         if level == "L3":
             if "SPECTRUM" not in hdul:
                 raise ValueError("L3 must contain a SPECTRUM table")
@@ -122,6 +122,11 @@ def validate_science_fits(path: Path) -> None:
                     raise ValueError("NONPOL L3 contains forbidden polarization columns")
             if not required.issubset(columns):
                 raise ValueError(f"L3 is missing columns: {sorted(required - columns)}")
+            if header["INSTRUME"] == "ESPADONS":
+                if int(header.get("RESAMPN", -1)) != 1:
+                    raise ValueError("ESPADONS L3 must record exactly one resampling")
+                if "RESAMPLE_COVARIANCE" not in hdul:
+                    raise ValueError("ESPADONS L3 must contain resampling covariance")
 
 
 def _common_header(
@@ -360,10 +365,7 @@ def write_polar_l3(
 ) -> None:
     def optional_float_column(name: str) -> np.ndarray:
         return np.asarray(
-            [
-                np.nan if row.get(name) is None else float(row[name])
-                for row in exposure_rows
-            ],
+            [np.nan if row.get(name) is None else float(row[name]) for row in exposure_rows],
             dtype=np.float64,
         )
 
@@ -386,6 +388,7 @@ def write_polar_l3(
         qc_flag=qc_flag,
     )
     primary.header["GROUPID"] = group_id
+    primary.header["RESAMPN"] = int(product.provenance.get("common_grid_resampling_count", 0))
     spectrum = fits.BinTableHDU.from_columns(
         [
             fits.Column(
@@ -398,12 +401,8 @@ def write_polar_l3(
             fits.Column(
                 name="P", format="D", unit=product.polarization_unit, array=product.polarization
             ),
-            fits.Column(
-                name="N1", format="D", unit=product.polarization_unit, array=product.null1
-            ),
-            fits.Column(
-                name="N2", format="D", unit=product.polarization_unit, array=product.null2
-            ),
+            fits.Column(name="N1", format="D", unit=product.polarization_unit, array=product.null1),
+            fits.Column(name="N2", format="D", unit=product.polarization_unit, array=product.null2),
             fits.Column(
                 name="ERR_I", format="D", unit=product.intensity_unit, array=product.err_intensity
             ),
@@ -469,10 +468,29 @@ def write_polar_l3(
         ],
         name="SEQUENCE",
     )
+    sign_vectors = product.provenance.get("sign_vectors", {})
+
+    def sign_vector(name: str) -> str:
+        values = sign_vectors.get(name, []) if isinstance(sign_vectors, dict) else []
+        return ",".join(str(int(value)) for value in values)
+
+    provenance_rows = [
+        ("CONFIG", config_id),
+        ("ALGORITHM", str(product.provenance.get("algorithm", "UNVERIFIED"))),
+        ("DEMODVER", modulation_version),
+        (
+            "SIGNCONV",
+            "CFHT_QV_KEEP_U_NEGATE" if instrument == "ESPADONS" else "MODEL_DEFINED",
+        ),
+        ("SCI_SIGNS", sign_vector("science")),
+        ("NULL1SIGNS", sign_vector("null1")),
+        ("NULL2SIGNS", sign_vector("null2")),
+        ("OUTPUTSIGN", str(product.provenance.get("output_sign", "UNVERIFIED"))),
+    ]
     provenance = fits.BinTableHDU.from_columns(
         [
-            fits.Column(name="NAME", format="32A", array=["CONFIG", "ALGORITHM"]),
-            fits.Column(name="VALUE", format="72A", array=[config_id, "ratio-log-v1"]),
+            fits.Column(name="NAME", format="32A", array=[row[0] for row in provenance_rows]),
+            fits.Column(name="VALUE", format="72A", array=[row[1] for row in provenance_rows]),
         ],
         name="PROVENANCE",
     )
@@ -487,9 +505,7 @@ def write_polar_l3(
             covariance_columns.append(fits.Column(name=name, format="D", array=values))
     hdus: list[fits.hdu.base.ExtensionHDU] = [primary, spectrum, sequence, provenance]
     if covariance_columns:
-        covariance = fits.BinTableHDU.from_columns(
-            covariance_columns, name="RESAMPLE_COVARIANCE"
-        )
+        covariance = fits.BinTableHDU.from_columns(covariance_columns, name="RESAMPLE_COVARIANCE")
         covariance.header["COVTYPE"] = "ADJACENT_PIXEL_LAG1"
         covariance.header["RESAMPN"] = 1
         hdus.append(covariance)

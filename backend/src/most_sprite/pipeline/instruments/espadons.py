@@ -33,9 +33,7 @@ _SEQUENCE_RE = re.compile(
     r"\b([QUV])\s+exposure\s+([1-4])(?:\D+sequence\s+(\d+))?",
     re.IGNORECASE,
 )
-_FITS_SECTION_RE = re.compile(
-    r"^\[\s*(-?\d+)\s*:\s*(-?\d+)\s*,\s*(-?\d+)\s*:\s*(-?\d+)\s*\]$"
-)
+_FITS_SECTION_RE = re.compile(r"^\[\s*(-?\d+)\s*:\s*(-?\d+)\s*,\s*(-?\d+)\s*:\s*(-?\d+)\s*\]$")
 
 
 def sha256_file(path: Path) -> str:
@@ -193,8 +191,10 @@ class ESPaDOnSAdapter:
     def inspect(self, path: Path, *, relative_path: str) -> RawDescriptor:
         header, image_hdu, _ = self._open_header(path)
         role = self._role(path, header, image_hdu)
-        detector = self._detector(header) if role != "REFERENCE_ONLY" else str(
-            _first_value(header, "DETECTOR", "DETNAM", default="OLAPA")
+        detector = (
+            self._detector(header)
+            if role != "REFERENCE_ONLY"
+            else str(_first_value(header, "DETECTOR", "DETNAM", default="OLAPA"))
         )
         sequence_match = _SEQUENCE_RE.search(str(header.get("CMMTSEQ", "")))
         stokes = sequence_match.group(1).upper() if sequence_match else None
@@ -481,9 +481,7 @@ class ESPaDOnSAdapter:
             variance /= safe_flat**2
             if flat_variance is not None:
                 if flat_variance.shape != science.shape:
-                    raise SpriteError(
-                        "CALIBRATION_SHAPE_MISMATCH", "flat variance shape differs"
-                    )
+                    raise SpriteError("CALIBRATION_SHAPE_MISMATCH", "flat variance shape differs")
                 valid_flat_variance = (
                     ~bad_flat
                     & np.isfinite(flat_variance)
@@ -500,9 +498,7 @@ class ESPaDOnSAdapter:
                 dq[~valid_flat_variance] |= DQBit.BAD_PIXEL
             if flat_dq is not None:
                 if flat_dq.shape != science.shape:
-                    raise SpriteError(
-                        "CALIBRATION_SHAPE_MISMATCH", "flat DQ shape differs"
-                    )
+                    raise SpriteError("CALIBRATION_SHAPE_MISMATCH", "flat DQ shape differs")
                 dq |= flat_dq
             dq[bad_flat] |= DQBit.BAD_PIXEL
         provenance = {
@@ -542,8 +538,14 @@ class ESPaDOnSAdapter:
         if not mode.is_polarimetric:
             raise ValueError("ESPaDOnS demodulation requires POL_Q, POL_U or POL_V")
         return DemodulationModel(
-            version=f"{self.version}-ratio-log-cfht-sign-v1",
-            science_signs=(1, -1, -1, 1),
+            version=f"{self.version}-ratio-log-cfht-sign-v2",
+            # The O/E beam ratio produced by the OLAPA extraction has the
+            # opposite orientation to the archived Libre-ESpRIT Stokes
+            # convention.  BD+59 389 (HD 236928) fixes this otherwise
+            # ambiguous global sign: the vector below recovers its catalogued
+            # negative Q and U and ~98 degree position angle.  The separate U
+            # output sign then applies the explicit CFHT archive convention.
+            science_signs=(-1, 1, 1, -1),
             null1_signs=(1, 1, -1, -1),
             null2_signs=(1, -1, 1, -1),
             output_sign=-1.0 if mode is DataMode.POL_U else 1.0,

@@ -39,7 +39,13 @@ def upgrade() -> None:
     op.create_table(
         "import_batches",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("inspection_id", sa.String(36), sa.ForeignKey("import_inspections.id"), nullable=False, unique=True),
+        sa.Column(
+            "inspection_id",
+            sa.String(36),
+            sa.ForeignKey("import_inspections.id"),
+            nullable=False,
+            unique=True,
+        ),
         sa.Column("idempotency_key", sa.String(128), nullable=False, unique=True),
         sa.Column("manifest_sha256", sa.String(64), nullable=False),
         sa.Column("status", sa.String(32), nullable=False),
@@ -54,7 +60,12 @@ def upgrade() -> None:
     op.create_table(
         "calibration_runs",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("import_batch_id", sa.String(36), sa.ForeignKey("import_batches.id"), nullable=False),
+        sa.Column(
+            "import_batch_id",
+            sa.String(36),
+            sa.ForeignKey("import_batches.id"),
+            nullable=False,
+        ),
         sa.Column("idempotency_key", sa.String(128), nullable=False, unique=True),
         sa.Column("status", sa.String(32), nullable=False),
         sa.Column("progress", sa.Float(), nullable=False),
@@ -69,8 +80,19 @@ def upgrade() -> None:
     op.create_table(
         "calibration_sets",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("calibration_run_id", sa.String(36), sa.ForeignKey("calibration_runs.id"), nullable=False, unique=True),
-        sa.Column("import_batch_id", sa.String(36), sa.ForeignKey("import_batches.id"), nullable=False),
+        sa.Column(
+            "calibration_run_id",
+            sa.String(36),
+            sa.ForeignKey("calibration_runs.id"),
+            nullable=False,
+            unique=True,
+        ),
+        sa.Column(
+            "import_batch_id",
+            sa.String(36),
+            sa.ForeignKey("import_batches.id"),
+            nullable=False,
+        ),
         sa.Column("instrument", sa.String(32), nullable=False),
         sa.Column("detector", sa.String(64), nullable=False),
         sa.Column("observing_night", sa.String(16), nullable=False),
@@ -94,7 +116,12 @@ def upgrade() -> None:
     op.create_table(
         "imported_artifacts",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("import_batch_id", sa.String(36), sa.ForeignKey("import_batches.id"), nullable=False),
+        sa.Column(
+            "import_batch_id",
+            sa.String(36),
+            sa.ForeignKey("import_batches.id"),
+            nullable=False,
+        ),
         sa.Column("relative_path", sa.Text(), nullable=False),
         sa.Column("managed_uri", sa.Text(), nullable=False, unique=True),
         sa.Column("size", sa.Integer(), nullable=False),
@@ -164,4 +191,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    raise RuntimeError("0003 contains immutable import authority; downgrade is intentionally unsupported")
+    raise RuntimeError(
+        "0003 contains immutable import authority; downgrade is intentionally unsupported"
+    )

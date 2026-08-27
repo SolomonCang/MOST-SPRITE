@@ -13,7 +13,11 @@ from most_sprite.calibration.bundle import (
 )
 from most_sprite.domain.enums import DataMode, DQBit
 from most_sprite.errors import SpriteError
-from most_sprite.pipeline.echelle.espadons import ESPaDOnSTraceSet
+from most_sprite.pipeline.echelle.espadons import (
+    ESPaDOnSTraceSet,
+    _select_olapa_polarimetric_anchors,
+)
+from most_sprite.pipeline.echelle.imageproc import combine_calibration
 from most_sprite.pipeline.echelle.models import (
     CalibrationFrame,
     SpectrumChannel,
@@ -28,6 +32,10 @@ from most_sprite.pipeline.instruments.espadons import (
 )
 from most_sprite.pipeline.polarimetry import BeamSpectrum, demodulate_group
 from most_sprite.pipeline.wavelength import resample_common_grid
+from most_sprite.pipeline.wavelength.espadons import (
+    _BOOTSTRAP_COEFFICIENTS,
+    _features,
+)
 
 
 def _write_raw(
@@ -71,6 +79,29 @@ def test_fits_sections_are_one_indexed_and_honor_reversed_axes() -> None:
         parse_fits_section("[0:2,1:3]", shape=values.shape)
     with pytest.raises(SpriteError, match="exceeds image shape"):
         parse_fits_section("[1:6,1:3]", shape=values.shape)
+
+
+def test_calibration_combine_is_tiled_and_rejects_outliers() -> None:
+    shape = (5, 4)
+    frame = CalibrationFrame(
+        data=np.full(shape, 10.0),
+        variance=np.ones(shape),
+        dq=np.zeros(shape, dtype=np.uint32),
+        unit="electron",
+    )
+    result = combine_calibration(
+        [frame, np.full(shape, 10.0), np.full(shape, 100.0)],
+        {
+            "read_noise_e": 1.0,
+            "working_memory_bytes": 3 * shape[1] * 8 * 4,
+            "config_version": "test-v1",
+        },
+    )
+    assert np.allclose(result.data, 10.0)
+    assert np.allclose(result.variance, 0.0)
+    assert np.all(result.dq == 0)
+    assert result.unit == "electron"
+    assert result.provenance["tile_rows"] == 1
 
 
 def test_empty_primary_hdu1_is_read_and_transformed_to_canonical_axes(
@@ -139,6 +170,40 @@ def test_repeated_groups_reset_sub_indices_to_one_through_four() -> None:
     assert all(len(group["artifacts"]) == 4 for group in groups)
 
 
+def test_olapa_trace_excludes_interleaved_physical_order_21() -> None:
+    locations = [(float(value), float(value - 2), float(value + 2)) for value in range(4)]
+    anchors = _select_olapa_polarimetric_anchors(
+        locations,
+        expected_orders=3,
+    )
+
+    assert [anchor[0] for anchor in anchors] == [0.0, 2.0, 3.0]
+    assert _select_olapa_polarimetric_anchors(
+        locations[:3], expected_orders=3
+    ) == locations[:3]
+
+    with pytest.raises(ValueError, match="expected 3 or 4"):
+        _select_olapa_polarimetric_anchors(
+            locations[:2],
+            expected_orders=3,
+        )
+
+
+def test_olapa_wavelength_bootstrap_has_canonical_orientation_and_scale() -> None:
+    pixels = np.array([0.0, 2304.0, 4607.0])
+    normalized_pixels = (pixels - (4608 - 1) / 2.0) / 4608
+    order = 34.0
+    order_coordinate = np.full(pixels.shape, (order - 41.5) / 19.5)
+    wavelength = (
+        _features(normalized_pixels, order_coordinate, 2)
+        @ _BOOTSTRAP_COEFFICIENTS
+        / order
+    )
+
+    assert np.all(np.diff(wavelength) > 0)
+    assert np.allclose(wavelength, [651.6, 666.0, 678.3], atol=0.2)
+
+
 @pytest.mark.parametrize(
     ("mode", "expected_sign"),
     [(DataMode.POL_Q, 1.0), (DataMode.POL_U, -1.0), (DataMode.POL_V, 1.0)],
@@ -147,6 +212,8 @@ def test_cfht_q_u_v_output_sign_convention(
     mode: DataMode, expected_sign: float
 ) -> None:
     model = ESPaDOnSAdapter().demodulation_model(mode)
+    assert model.science_signs == (-1, 1, 1, -1)
+    assert model.version.endswith("ratio-log-cfht-sign-v2")
     wavelength = np.linspace(500.0, 501.0, 16)
     injected = 0.012
     exposures = []

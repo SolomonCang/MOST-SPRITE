@@ -8,14 +8,14 @@ upstream:
   license_file: third_party/licenses/Apache-2.0.txt
   license_sha256: c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 migration:
-  date: "2026-08-26"
+  date: "2026-08-27"
   method: selective-manual-rewrite
   runtime_dependency: false
 derived_files:
   - upstream_path: gamse/echelle/imageproc.py
     upstream_sha256: 4d161894c550a5946458e6b34e7f3b077e89c0c18b8a91d7f534a429273b9f3f
     sprite_path: backend/src/most_sprite/pipeline/echelle/imageproc.py
-    sprite_sha256: c3101150c17da55dfa608cb7185510d57851598e37c89cf6a84ad317aa31a006
+    sprite_sha256: 1b0de231b7a2b62d4656c2eb21c9bba0de068bad82e6c5bd633e07cdc6d9a2ab
   - upstream_path: gamse/echelle/trace.py
     upstream_sha256: cdd25076b208593d6c29f5141a217a66e6b634ebde991b6411b927009d54f37a
     sprite_path: backend/src/most_sprite/pipeline/echelle/trace.py
@@ -23,7 +23,7 @@ derived_files:
   - upstream_path: gamse/echelle/flat.py
     upstream_sha256: 911be04891e5a6f9e97bd9997605429d949817fd2909f107532949b0e3e18ea7
     sprite_path: backend/src/most_sprite/pipeline/echelle/flat.py
-    sprite_sha256: 9b9a7b9a4852295fc1b90057a3fa5d7bca67d041fe78a6d96e180a7f5303144e
+    sprite_sha256: 5007cb34c61261e4d6f596e95bf83e78d07b849ed38c48d4eba5f4d269749f53
   - upstream_path: gamse/echelle/background.py
     upstream_sha256: f40e947079fa72306ac0ca2a13e0cc514f3a1f794e72e05d8b70cccd6e9c51a5
     sprite_path: backend/src/most_sprite/pipeline/echelle/background.py
@@ -36,3 +36,43 @@ derived_files:
     upstream_sha256: a4fa6a28d5091dd43b1d5c2aaee11d4d431cb13cef0a178a7c2e3766d28fbd9b
     sprite_path: backend/src/most_sprite/pipeline/echelle/wlcalib.py
     sprite_sha256: cd6d9dc815aecae949f0cbd8fe99367dd11ea0cba1aa855b59f655b43e9ff003
+  - upstream_path: gamse/echelle/trace.py
+    upstream_sha256: cdd25076b208593d6c29f5141a217a66e6b634ebde991b6411b927009d54f37a
+    upstream_additional:
+      - path: gamse/echelle/extract.py
+        sha256: f4391bcf05da78557fbb5c7b301f3aba8b34787ba689f0663473b32c12afadf5
+    sprite_path: backend/src/most_sprite/pipeline/echelle/models.py
+    sprite_sha256: 343c7965c8c71238b1f0306c9bc08492649e09044a6566726baa2068bc792e6a
+  - upstream_path: gamse/pipelines/espadons/trace.py
+    upstream_sha256: b3b8f3f3d9038ac4fc2ec59bdb2e535f00ab527a1b4cae6f5e4df0e482605e86
+    upstream_additional:
+      - path: gamse/echelle/extract.py
+        sha256: f4391bcf05da78557fbb5c7b301f3aba8b34787ba689f0663473b32c12afadf5
+    sprite_path: backend/src/most_sprite/pipeline/echelle/espadons.py
+    sprite_sha256: 267963867f3ecbe5a48e7e6648e7c3d34d4ae45f2eb5754cee28167cabc4a052
+  - upstream_path: gamse/pipelines/espadons/framesteps.py
+    upstream_sha256: 8f9e63b603279bc77f55a20a2d3eda66785a043d526037dcfafc5c976b2c7b7e
+    upstream_additional:
+      - path: gamse/pipelines/espadons/__init__.py
+        sha256: b96881730805482bf608ed0cadaba4b4f11d789dfc7265f3296405d79de9fc01
+    sprite_path: backend/src/most_sprite/pipeline/instruments/espadons.py
+    sprite_sha256: 3f75a5020ddb815ba2460fedafc687c4a7fab14f203db4f75a0870284e30945c
+  - upstream_path: gamse/echelle/wlcalib.py
+    upstream_sha256: a4fa6a28d5091dd43b1d5c2aaee11d4d431cb13cef0a178a7c2e3766d28fbd9b
+    upstream_additional:
+      - path: gamse/data/calib/wlcalib_espadons.dat
+        sha256: 5a85ba8102afb591d99cb1c70b03c0aa5c0bc15968f3cd261c1807faacd8c3b8
+    upstream_assets:
+      - uri: https://gamse-bj.s3.cn-north-1.amazonaws.com.cn/instruments/espadons/wlcalib_2495167c.fits
+        md5: 4a030086d401540004a14fb607795ad2
+        sha256: 7c9cc8dae64dcfa677ac921e96a5ee3f04c02415f6fcdcc63db5727a005e3ce6
+        role: immutable-identification-bootstrap-reference
+    sprite_path: backend/src/most_sprite/pipeline/wavelength/espadons.py
+    sprite_sha256: 0b1c7f8c99ad3bbe2e5798fbf1630335ca4c15e2ed3e4fa34ff266d2feadea37
+  - upstream_path: gamse/data/linelist/thorium.dat
+    upstream_sha256: d5b1048621c316325d8b46bbb5f1e37219937559310f6f26e9db701efd7a64e8
+    upstream_additional:
+      - path: gamse/data/linelist/argon.dat
+        sha256: 7c2629fb571b06782b25f41d0dcf601cd9e18b53bb56b718679bbeccbcd8198c
+    sprite_path: backend/src/most_sprite/pipeline/instruments/data/thar_espadons_air.csv
+    sprite_sha256: 1f0aa2a902bc3acdb956837f43b7f8ffdf0e2854a697ad6e77f207e3f2c04911

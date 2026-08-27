@@ -8,12 +8,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: cadc-regression-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  frozen-reference:
+  scientific-replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       SPRITE_TESTDATA_DIR: ${{ runner.temp }}/most-sprite-cadc-cache
+      SPRITE_REPLAY_ROOT: ${{ runner.temp }}/most-sprite-replays
+      SPRITE_CADC_CANDIDATE_DIR: ${{ runner.temp }}/most-sprite-candidate
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -27,29 +33,57 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ${{ env.SPRITE_TESTDATA_DIR }}
-          key: cadc-espadons-${{ hashFiles('tests/data-manifests/cadc-espadons-ad-leo-v1.yaml') }}
-      - run: uv run python tools/testdata/fetch_cadc.py
-      - run: uv run pytest -q tests/golden/test_cadc_reference.py
-
-  numerical-candidate:
-    if: ${{ vars.SPRITE_CADC_CANDIDATE_URI != '' }}
-    runs-on: ubuntu-latest
-    needs: frozen-reference
-    env:
-      SPRITE_CADC_CANDIDATE_DIR: ${{ runner.temp }}/most-sprite-candidate
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          version: "0.11.9"
-          enable-cache: true
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: uv sync --all-groups --locked
-      - name: Retrieve candidate bundle produced by the frozen reduction run
+          key: cadc-espadons-${{ hashFiles('tests/data-manifests/cadc-espadons-*.yaml') }}
+      - name: Fetch and verify all frozen ESPaDOnS datasets
         run: |
-          mkdir -p "$SPRITE_CADC_CANDIDATE_DIR"
-          curl --fail --location --retry 3 "${{ vars.SPRITE_CADC_CANDIDATE_URI }}" \
-            | tar -xz -C "$SPRITE_CADC_CANDIDATE_DIR"
-      - run: uv run pytest -q tests/golden/test_cadc_regression_bundle.py
+          for manifest in tests/data-manifests/cadc-espadons-*.yaml; do
+            uv run python tools/testdata/fetch_cadc.py --manifest "$manifest" --workers 4
+          done
+      - name: Verify frozen reference metadata and provenance
+        run: uv run pytest -q tests/golden/test_cadc_reference.py
+      - name: Replay AD Leo Q/U/V from an empty database
+        run: |
+          mkdir -p "$SPRITE_REPLAY_ROOT"
+          uv run python tools/testdata/run_espadons_replay.py \
+            --manifest tests/data-manifests/cadc-espadons-ad-leo-v1.yaml \
+            --cache-dir "$SPRITE_TESTDATA_DIR" \
+            --work-dir "$SPRITE_REPLAY_ROOT/ad-leo"
+      - name: Replay HR 5501 V from an empty database
+        run: |
+          uv run python tools/testdata/run_espadons_replay.py \
+            --manifest tests/data-manifests/cadc-espadons-hr-5501-v1.yaml \
+            --cache-dir "$SPRITE_TESTDATA_DIR" \
+            --work-dir "$SPRITE_REPLAY_ROOT/hr-5501"
+      - name: Prove deterministic HR 5501 scientific identity
+        run: |
+          uv run python tools/testdata/run_espadons_replay.py \
+            --manifest tests/data-manifests/cadc-espadons-hr-5501-v1.yaml \
+            --cache-dir "$SPRITE_TESTDATA_DIR" \
+            --work-dir "$SPRITE_REPLAY_ROOT/hr-5501-repeat" \
+            --expected-summary "$SPRITE_REPLAY_ROOT/hr-5501/regression-summary.json"
+      - name: Replay HD 236928 Q/U from an empty database
+        run: |
+          uv run python tools/testdata/run_espadons_replay.py \
+            --manifest tests/data-manifests/cadc-espadons-hd-236928-v1.yaml \
+            --cache-dir "$SPRITE_TESTDATA_DIR" \
+            --work-dir "$SPRITE_REPLAY_ROOT/hd-236928"
+      - name: Build comparison-only candidate bundles
+        run: |
+          uv run python tools/testdata/build_cadc_candidate.py \
+            --cache-dir "$SPRITE_TESTDATA_DIR" \
+            --candidate-dir "$SPRITE_CADC_CANDIDATE_DIR" \
+            --ad-replay "$SPRITE_REPLAY_ROOT/ad-leo" \
+            --hr-replay "$SPRITE_REPLAY_ROOT/hr-5501" \
+            --hd-replay "$SPRITE_REPLAY_ROOT/hd-236928"
+      - name: Enforce scientific release gates
+        run: uv run pytest -q tests/golden/test_cadc_regression_bundle.py
+      - name: Retain replay identities and regression receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cadc-regression-receipts-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ env.SPRITE_REPLAY_ROOT }}/*/regression-summary.json
+            ${{ env.SPRITE_CADC_CANDIDATE_DIR }}/receipt.json

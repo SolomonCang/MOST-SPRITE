@@ -220,6 +220,26 @@ def _section_alignment(
     return scale, shift, rms
 
 
+def _select_olapa_polarimetric_anchors(
+    locations: list[tuple[float, float, float]],
+    *,
+    expected_orders: int,
+) -> list[tuple[float, float, float]]:
+    ordered_locations = sorted(locations, key=lambda value: value[0])
+    if len(ordered_locations) == expected_orders:
+        return ordered_locations
+    if len(ordered_locations) != expected_orders + 1:
+        raise ValueError(
+            f"found {len(ordered_locations)} central ESPaDOnS profiles; "
+            f"expected {expected_orders} or {expected_orders + 1}"
+        )
+    return [
+        location
+        for index, location in enumerate(ordered_locations)
+        if index != 1
+    ]
+
+
 def _track_landmarks(
     samples: list[
         tuple[float, NDArray[np.float64], list[tuple[float, float, float]]]
@@ -244,19 +264,18 @@ def _track_landmarks(
         key=lambda index: abs(samples[index][0] - dispersion_midpoint),
     )
     center_x, _, center_values = samples[center_index]
-    # OLAPA records physical orders m=22..61 from low to high canonical
-    # cross-dispersion row.  At the detector midpoint the red m=22 aperture is
-    # intentionally clipped by the low row boundary, while an additional blue
-    # m=62 aperture is visible but falls outside the released ESPaDOnS
-    # polarimetric wavelength range.  Keep the first forty profiles.  The
-    # orientation is independently checked by the expected red-star count
-    # gradient and by the CFHT 369--1048 nm processed-product coverage.
-    anchors = sorted(center_values, key=lambda value: value[0])[:expected_orders]
-    if len(anchors) != expected_orders:
-        raise ValueError(
-            f"found {len(anchors)} central ESPaDOnS orders; "
-            f"expected {expected_orders}"
-        )
+    # Current OLAPA flats expose the forty m=22..61 slicer profiles directly.
+    # Some legacy red-edge geometries expose a 41st profile: in canonical
+    # coordinates the clipped m=22 profile is first, reference-only m=21 is
+    # second, and m=23..61 follow.  This ordering is verified against the
+    # immutable GAMSE lamp (profile 1 correlates with m=21; profile 2 with
+    # m=23).  The downstream same-night ThAr solver additionally requires 200
+    # associations across 30 physical orders, so an incorrect inventory cannot
+    # pass on a few aliases.
+    anchors = _select_olapa_polarimetric_anchors(
+        center_values,
+        expected_orders=expected_orders,
+    )
     anchor_centers = np.asarray([value[0] for value in anchors], dtype=np.float64)
     mappings: dict[int, tuple[float, float]] = {center_index: (1.0, 0.0)}
     alignment_rms: dict[int, float] = {center_index: 0.0}
@@ -306,6 +325,14 @@ def _track_landmarks(
         )
     return tracks, {
         "central_dispersion_pixel": center_x,
+        "central_profile_count": len(center_values),
+        "excluded_reference_profile_index": (
+            1 if len(center_values) == expected_orders + 1 else None
+        ),
+        "excluded_physical_order": (
+            21 if len(center_values) == expected_orders + 1 else None
+        ),
+        "retained_physical_order_range": [22, 61],
         "alignment_rms_median": float(np.median(list(alignment_rms.values()))),
         "alignment_rms_max": float(np.max(list(alignment_rms.values()))),
         "match_distance_median_pixel": float(np.median(match_distances)),
@@ -440,7 +467,7 @@ def trace_espadons_orders(
             widths=np.full(expected_orders, width, dtype=np.float64),
             config_version=master_flat.config_version,
             provenance={
-                "algorithm": "espadons_curved_trace_v1",
+                "algorithm": "espadons_curved_trace_v2",
                 "role": role,
                 "fit_rms_pixel": residuals[role],
                 "fit_sample_count": fit_counts[role],
@@ -456,7 +483,8 @@ def trace_espadons_orders(
         beams=beams,
         config_version=master_flat.config_version,
         provenance={
-            "algorithm": "espadons_curved_trace_v1",
+            "algorithm": "espadons_curved_trace_v2",
+            "order_selection": "olapa-polarimetric-m22-m61-v1",
             "order_count": expected_orders,
             "sample_count": len(samples),
             "trace_rms_pixel": float(np.median(all_residuals)),

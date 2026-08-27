@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from itertools import permutations
+from pathlib import Path
 
 import numpy as np
+from astropy.io import fits
 from hypothesis import given
 from hypothesis import strategies as st
 from most_sprite.configuration import SIGN_VECTORS
-from most_sprite.domain.enums import DQBit
+from most_sprite.domain.enums import DataMode, DQBit
+from most_sprite.pipeline.instruments.espadons import ESPaDOnSAdapter
 from most_sprite.pipeline.nonpolar import subtract_sky
 from most_sprite.pipeline.polarimetry import BeamSpectrum, demodulate_group
+from most_sprite.products import write_polar_l3
 
 
 def polar_group(
@@ -134,6 +138,46 @@ def test_single_frame_contamination_marks_corresponding_null_spectra() -> None:
     result = demodulate_group(exposures, null_sigma_threshold=5.0)
     assert np.any(result.dq[100:110] & DQBit.NULL1_EXCESS)
     assert np.any(result.dq[100:110] & DQBit.NULL2_EXCESS)
+
+
+def test_espadons_l3_records_resampling_and_sign_provenance(tmp_path: Path) -> None:
+    mode = DataMode.POL_U
+    model = ESPaDOnSAdapter().demodulation_model(mode)
+    result = demodulate_group(polar_group(0.001, samples=32), model=model)
+    result.provenance["common_grid_resampling_count"] = 1
+    path = tmp_path / "espadons-l3.fits"
+    write_polar_l3(
+        result,
+        path,
+        mode=mode,
+        sequence_id="sequence-id",
+        group_id="group-id",
+        config_id="config-id",
+        exposure_rows=[
+            {"exposure_id": f"exposure-{index}", "sub_index": index} for index in range(1, 5)
+        ],
+        instrument="ESPADONS",
+        detector="OLAPA",
+        calibration_set_id="calibration-set-id",
+        calibration_version="espadons-olapa-v1",
+        modulation_version=model.version,
+        wavelength_type="AIR",
+        qc_flag="PASS",
+    )
+    with fits.open(path, checksum=True, memmap=False) as hdul:
+        assert hdul[0].header["RESAMPN"] == 1
+        assert hdul["RESAMPLE_COVARIANCE"].header["RESAMPN"] == 1
+        provenance = dict(
+            zip(
+                hdul["PROVENANCE"].data["NAME"],
+                hdul["PROVENANCE"].data["VALUE"],
+                strict=True,
+            )
+        )
+        assert provenance["DEMODVER"] == model.version
+        assert provenance["SIGNCONV"] == "CFHT_QV_KEEP_U_NEGATE"
+        assert provenance["SCI_SIGNS"] == "-1,1,1,-1"
+        assert provenance["OUTPUTSIGN"] == "-1.0"
 
 
 def test_nonpolar_propagates_sky_and_alpha_variance() -> None:

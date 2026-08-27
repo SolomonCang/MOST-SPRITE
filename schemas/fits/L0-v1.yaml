@@ -32,8 +32,10 @@ primary:
     - CALVER
     - MODVER
     - MUELLVER
-    - CHANMAP
-    - QCFLAG
+    - INSTRUME
+    - DETECTOR
+    - AXISMAP
+    - POLCONT
     - CHANMAP
     - QCFLAG
     - CHECKSUM

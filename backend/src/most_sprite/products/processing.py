@@ -158,11 +158,10 @@ async def ensure_processing_run(
         )
     parameter_hash = _hash_json(
         {
-            "config_snapshot_id": snapshot.id,
             "config_content_hash": snapshot.content_hash,
             "parameters": parameters or {},
             "parameter_version": parameter_version,
-            "science_schema": 1,
+            "science_schema": 2,
         }
     )
     settings = get_settings()
@@ -517,7 +516,11 @@ async def _process_espadons_sequence(
             wavelength_type="AIR",
             qc_flag=str(calibration_set.qc_flag),
         )
-        l2_hash = _science_product_hash(run, "ESPADONS-L2-v1", [l1_product.sha256])
+        l2_hash = _science_product_hash(
+            run,
+            "ESPADONS-L2-v1",
+            [l1_product.product_hash],
+        )
         l2_product = await _register_product(
             session,
             run=run,
@@ -639,7 +642,7 @@ async def _process_espadons_sequence(
         product_hash = _science_product_hash(
             run,
             f"ESPADONS-POL-L3-v1:{variant}",
-            [item[3].sha256 for item in l2_outputs],
+            [item[3].product_hash for item in l2_outputs],
         )
         product = await _register_product(
             session,
@@ -850,7 +853,11 @@ async def process_run(run_id: str, *, claim_token: str | None = None) -> None:
                     exposure_id=exposure.id,
                     config_id=sequence.config_snapshot_id,
                 )
-                l2_hash = _science_product_hash(run, "L2-v1", [l1_product.sha256])
+                l2_hash = _science_product_hash(
+                    run,
+                    "L2-v1",
+                    [l1_product.product_hash],
+                )
                 l2_product = await _register_product(
                     session,
                     run=run,
@@ -924,7 +931,7 @@ async def process_run(run_id: str, *, claim_token: str | None = None) -> None:
                     product_hash = _science_product_hash(
                         run,
                         "POL-L3-v1",
-                        [item[3].sha256 for item in group_rows],
+                        [item[3].product_hash for item in group_rows],
                     )
                     product = await _register_product(
                         session,
@@ -992,7 +999,9 @@ async def process_run(run_id: str, *, claim_token: str | None = None) -> None:
                         config_id=sequence.config_snapshot_id,
                     )
                     product_hash = _science_product_hash(
-                        run, "NONPOL-L3-v1", [l2_product.sha256]
+                        run,
+                        "NONPOL-L3-v1",
+                        [l2_product.product_hash],
                     )
                     product = await _register_product(
                         session,
