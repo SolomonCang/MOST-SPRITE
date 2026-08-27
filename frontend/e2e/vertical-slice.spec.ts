@@ -16,7 +16,8 @@ async function completeSequence(page: Page, mode: "POL_Q" | "NONPOL", target: st
     await expect(page.getByTestId(`exposure-${index}`)).toContainText("L0");
   }
 
-  await page.getByRole("link", { name: /数据处理 Data/ }).click();
+  await page.goto("/data");
+  await expect(page.getByText("数据处理台", { exact: true }).first()).toBeVisible();
   await page.getByPlaceholder("搜索目标").fill(target);
   const sequence = page.getByRole("button", { name: new RegExp(target) });
   await expect(sequence).toBeVisible();
@@ -30,6 +31,19 @@ async function completeSequence(page: Page, mode: "POL_Q" | "NONPOL", target: st
 }
 
 test.describe.serial("MOST-SPRITE simulation vertical slice", () => {
+  test("system dashboard launches three independent workspaces", async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.getByRole("heading", { name: "系统仪表盘" })).toBeVisible();
+    const observation = page.getByRole("link", { name: /观测控制台/ });
+    const engineering = page.getByRole("link", { name: /仪器工程台/ });
+    const data = page.getByRole("link", { name: /数据处理台/ });
+    await expect(observation).toHaveAttribute("href", "/observe");
+    await expect(engineering).toHaveAttribute("href", "/engineering");
+    await expect(data).toHaveAttribute("href", "/data");
+    await expect(observation).toHaveAttribute("target", "_blank");
+  });
+
   test("persists Chinese/English and light/dark preferences", async ({ page }) => {
     await page.goto("/observe");
     await page.getByTestId("locale-en").click();

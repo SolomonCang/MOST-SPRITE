@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
+import { SystemShell } from "./components/SystemShell";
+import { WorkspaceShell } from "./components/WorkspaceShell";
 import { AdminPage } from "./pages/AdminPage";
 import { DataPage } from "./pages/DataPage";
 import { EngineeringPage } from "./pages/EngineeringPage";
@@ -9,12 +11,12 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<Navigate to="/observe" replace />} />
-        <Route path="observe" element={<ObservePage />} />
-        <Route path="data" element={<DataPage />} />
-        <Route path="engineering" element={<EngineeringPage />} />
-        <Route path="admin" element={<AdminPage />} />
-        <Route path="*" element={<Navigate to="/observe" replace />} />
+        <Route index element={<Navigate to="/admin" replace />} />
+        <Route path="admin" element={<SystemShell />}><Route index element={<AdminPage />} /></Route>
+        <Route path="observe" element={<WorkspaceShell workspace="observe" />}><Route index element={<ObservePage />} /></Route>
+        <Route path="engineering" element={<WorkspaceShell workspace="engineering" />}><Route index element={<EngineeringPage />} /></Route>
+        <Route path="data" element={<WorkspaceShell workspace="data" />}><Route index element={<DataPage />} /></Route>
+        <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>
   );

@@ -6,7 +6,6 @@ import {
   Crosshair,
   HardDrive,
   Pause,
-  Radio,
   RotateCw,
   Satellite,
   ShieldCheck,
@@ -18,6 +17,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Heatmap } from "../components/Heatmap";
 import { MetricCard } from "../components/MetricCard";
 import { Panel } from "../components/Panel";
+import { ProcessOutput } from "../components/ProcessOutput";
 import { StatusBadge } from "../components/StatusBadge";
 import { useI18n } from "../i18n/I18nProvider";
 import { api } from "../lib/api";
@@ -175,10 +175,7 @@ export function ObservePage() {
 
         <Panel title={t("observe.events.title")} eyebrow={t("observe.events.eyebrow")} className="events-panel">
           {currentAlarm ? <div className="alarm-card"><AlertTriangle size={20} /><div><header><StatusBadge value={currentAlarm.severity} subtle /><strong>{currentAlarm.reason_code}</strong><StatusBadge value={currentAlarm.acknowledged ? "ACKNOWLEDGED" : "UNACKNOWLEDGED"} subtle /></header><p>{alarmMessage}</p><dl><div><dt>{t("observe.events.protectiveAction")}</dt><dd>{protectiveAction}</dd></div><div><dt>{t("observe.events.recovery")}</dt><dd>{recoveryCondition}</dd></div><div><dt>{t("observe.events.firstSeen")}</dt><dd>{formatUtc(currentAlarm.created_at, true)} UTC</dd></div></dl></div></div> : <div className="no-alarm"><ShieldCheck size={16} />{t("observe.events.noAlarm")}</div>}
-          <ol className="event-log" data-testid="event-log">
-            {stream.events.slice(-8).reverse().map((event, index) => <li key={event.event_id ?? `${event.cursor}-${index}`}><time>{event.occurred_at.slice(11, 19)}</time><span>{event.event_type}</span><code>{String(event.payload?.status ?? event.payload?.reason_code ?? "event")}</code></li>)}
-            {!stream.events.length && <li className="empty-event"><Radio size={15} />{t("observe.events.empty")}</li>}
-          </ol>
+          <div data-testid="event-log"><ProcessOutput events={stream.events} connected={stream.connected} metrics={[{ label: "SEQUENCE", value: sequence.data?.status ?? "IDLE" }, { label: "EXPOSURES", value: `${completed} / ${expected}` }, { label: "L0", value: String(exposures.data?.filter((item) => item.raw_file_id).length ?? 0) }]} emptyLabel={t("observe.events.empty")} /></div>
         </Panel>
       </div>
 

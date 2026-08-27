@@ -23,6 +23,10 @@ docker compose up --build
 `http://localhost:8000`、`http://localhost:8000/docs` 和
 `http://localhost:8000/healthz`。Compose 明确使用开发观察员身份；不会连接任何真实设备。
 
+前端根入口是系统仪表盘：身份、配置、服务健康、审计和界面设置保留在平台层。仪表盘会在独立
+标签页打开观测控制台、仪器工程台和数据处理台；三者拥有各自的全屏外壳和权限上下文，不再共享
+聚合导航。观测与工程工作区同时显示 WebSocket 过程流，数据工作区独立承载导入、标定、提取和分析。
+
 栈中包含 `sprite-web`、`sprite-api`、`sprite-control`、`sprite-device-agent-sim`、
 `sprite-acquisition`、`sprite-quicklook`、`sprite-scheduler` 和 `sprite-worker`，以及 PostgreSQL 与
 Redis。数据、数据库和队列均使用具名卷，普通的 `docker compose down` 不会删除它们。
