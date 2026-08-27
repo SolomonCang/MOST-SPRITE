@@ -17,7 +17,7 @@ describe("PreferenceControls", () => {
 
   it("switches the complete interface language and persists it", () => {
     renderWithPreferences(<Probe />);
-    expect(screen.getByRole("heading", { name: "观测工作台" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "观测控制台" })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("locale-en"));
     expect(screen.getByRole("heading", { name: "Observation workspace" })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe("en-US");
@@ -29,6 +29,6 @@ describe("PreferenceControls", () => {
     const initial = document.documentElement.dataset.theme;
     fireEvent.click(screen.getByTestId("theme-toggle"));
     expect(document.documentElement.dataset.theme).not.toBe(initial);
-    expect(screen.getByRole("heading", { name: "观测工作台" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "观测控制台" })).toBeInTheDocument();
   });
 });

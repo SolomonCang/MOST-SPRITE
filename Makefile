@@ -1,4 +1,4 @@
-.PHONY: install dev up down test test-e2e test-golden lint verify frontend-build proto fetch-cadc smoke-4k
+.PHONY: install dev start up down test test-e2e test-golden lint verify frontend-build proto fetch-cadc smoke-4k
 
 install:
 	uv sync --all-groups
@@ -11,6 +11,9 @@ proto:
 
 dev:
 	SPRITE_EMBEDDED_WORKERS=true uv run sprite-api
+
+start:
+	bash scripts/start.sh
 
 up:
 	docker compose up --build

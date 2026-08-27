@@ -108,6 +108,19 @@ def test_simulated_sequence_reaches_l3(
     l0 = [item for item in products if item["level"] == "L0"]
     assert len(l0) == expected_exposures
     assert all(item["qc_flag"] == "SIMULATION_ONLY" for item in products)
+    l0_preview = api_client.get(
+        f"/api/v1/products/{l0[0]['id']}/preview", headers=observer_headers
+    )
+    assert l0_preview.status_code == 200, l0_preview.text
+    assert l0_preview.json()["shape"]
+    assert l0_preview.json()["image"]
+    assert l0_preview.json()["preview_reducer"] == "finite-max-pool-v1"
+    assert l0_preview.json()["preview_shape"] == [
+        len(l0_preview.json()["image"]),
+        len(l0_preview.json()["image"][0]),
+    ]
+    assert len(l0_preview.json()["image"]) <= 384
+    assert len(l0_preview.json()["image"][0]) <= 768
 
     l2 = next(item for item in products if item["level"] == "L2")
     assert "uri" not in l2
@@ -145,6 +158,21 @@ def test_simulated_sequence_reaches_l3(
         "parameter_hash",
         "code_hash",
     ))
+    stages_response = api_client.get(
+        f"/api/v1/processing-runs/{run['id']}/stages", headers=observer_headers
+    )
+    assert stages_response.status_code == 200, stages_response.text
+    stages = stages_response.json()
+    assert [stage["key"] for stage in stages] == ["l0", "quicklook", "l1", "l2", "l3"]
+    assert [stage["level"] for stage in stages] == ["L0", "QUICKLOOK", "L1", "L2", "L3"]
+    assert all(stage["status"] == "AVAILABLE" for stage in stages)
+    assert all(stage["products"] for stage in stages)
+    assert next(stage for stage in stages if stage["key"] == "l1")[
+        "expected_output_count"
+    ] == expected_exposures
+    assert next(stage for stage in stages if stage["key"] == "l3")[
+        "expected_output_count"
+    ] == (1 if mode == "POL_Q" else expected_exposures)
 
     reducer_headers = {
         "X-SPRITE-User": "test-reducer",

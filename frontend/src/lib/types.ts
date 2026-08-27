@@ -138,6 +138,27 @@ export interface ProcessingRun {
   updated_at: string;
 }
 
+export type ProcessingStageKey = "l0" | "quicklook" | "l1" | "l2" | "l3";
+export type ProcessingStageStatus =
+  | "AVAILABLE"
+  | "RUNNING"
+  | "PENDING"
+  | "PARTIAL"
+  | "FAILED"
+  | "BLOCKED"
+  | "NOT_AVAILABLE";
+
+export interface ProcessingStage {
+  key: ProcessingStageKey;
+  order: number;
+  level: ProductLevel;
+  status: ProcessingStageStatus;
+  preview_kind: "image" | "spectrum";
+  optional: boolean;
+  expected_output_count: number;
+  products: Product[];
+}
+
 export interface ImportInspectionRequest {
   root_id: string;
   relative_path: string;
@@ -261,7 +282,9 @@ export interface Preview {
   level: ProductLevel;
   mode?: DataMode;
   shape?: number[];
-  image?: number[][];
+  preview_shape?: number[];
+  preview_reducer?: string;
+  image?: Array<Array<number | null>>;
   columns?: Record<string, Array<number | null>>;
   metadata?: Record<string, unknown>;
   minimum?: number;

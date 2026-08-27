@@ -16,7 +16,7 @@ const event: StateEvent = {
 describe("ProcessOutput", () => {
   it("shows live metrics and structured process events", () => {
     renderWithPreferences(<ProcessOutput events={[event]} connected metrics={[{ label: "L0", value: "4" }]} />);
-    expect(screen.getByText("实时过程流")).toBeInTheDocument();
+    expect(screen.getByText("实时运行记录")).toBeInTheDocument();
     expect(screen.getByText("在线")).toBeInTheDocument();
     expect(screen.getByText("exposure.committed.v1")).toBeInTheDocument();
     expect(screen.getByText("status=COMMITTED · sub_index=4")).toBeInTheDocument();

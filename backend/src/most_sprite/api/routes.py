@@ -81,6 +81,7 @@ from most_sprite.domain.schemas import (
     InstrumentSnapshot,
     ProcessingRunRead,
     ProcessingRunRequest,
+    ProcessingStageRead,
     ProductPublicationRequest,
     ProductRead,
     SequenceRead,
@@ -90,6 +91,7 @@ from most_sprite.domain.schemas import (
 from most_sprite.errors import SpriteError
 from most_sprite.events import emit_event
 from most_sprite.imports import commit_import, inspect_import_directory
+from most_sprite.products.preview import downsample_image
 from most_sprite.products.processing import ensure_processing_run
 from most_sprite.provenance import record_audit
 
@@ -796,6 +798,126 @@ async def list_processing_tasks(
     ]
 
 
+@router.get(
+    "/api/v1/processing-runs/{run_id}/stages",
+    response_model=list[ProcessingStageRead],
+)
+async def list_processing_stages(
+    run_id: UUID, session: SessionDep, _: CurrentUser = Depends(current_user)
+) -> list[dict[str, Any]]:
+    """Project persisted products into user-facing reduction stages.
+
+    TaskRun remains the execution-level record. This endpoint deliberately derives
+    stage state from immutable products, so completed stage results stay browsable
+    even after a worker restart or a failed downstream stage.
+    """
+    run = await session.get(ProcessingRun, str(run_id))
+    if run is None:
+        raise SpriteError(
+            "PROCESSING_RUN_NOT_FOUND", "processing run does not exist", status_code=404
+        )
+    sequence = await session.get(Sequence, run.sequence_id)
+    if sequence is None:
+        raise SpriteError("SEQUENCE_NOT_FOUND", "sequence does not exist", status_code=404)
+
+    products = list(
+        (
+            await session.scalars(
+                select(Product)
+                .where(
+                    Product.sequence_id == run.sequence_id,
+                    (
+                        (Product.processing_run_id == run.id)
+                        | (Product.level.in_([ProductLevel.L0, ProductLevel.QUICKLOOK]))
+                    ),
+                )
+                .order_by(Product.created_at, Product.id)
+            )
+        ).all()
+    )
+    products_by_level = {
+        level: [product for product in products if product.level == level]
+        for level in ProductLevel
+    }
+    l3_expected = (
+        max(1, sequence.expected_exposures // 4)
+        if str(sequence.mode).startswith("POL_")
+        else sequence.expected_exposures
+    )
+    definitions = [
+        ("l0", ProductLevel.L0, "image", False, sequence.expected_exposures),
+        (
+            "quicklook",
+            ProductLevel.QUICKLOOK,
+            "image",
+            True,
+            sequence.expected_exposures,
+        ),
+        ("l1", ProductLevel.L1, "image", False, sequence.expected_exposures),
+        ("l2", ProductLevel.L2, "spectrum", False, sequence.expected_exposures),
+        ("l3", ProductLevel.L3, "spectrum", False, l3_expected),
+    ]
+
+    first_incomplete = next(
+        (
+            key
+            for key, level, _, optional, expected in definitions
+            if not optional and len(products_by_level[level]) < expected
+        ),
+        None,
+    )
+
+    def stage_status(
+        key: str,
+        *,
+        optional: bool,
+        output_count: int,
+        expected_output_count: int,
+    ) -> str:
+        if output_count >= expected_output_count:
+            return "AVAILABLE"
+        if output_count:
+            if run.status == "RUNNING" and key == first_incomplete:
+                return "RUNNING"
+            if run.status == "FAILED" and key == first_incomplete:
+                return "FAILED"
+            return "PARTIAL"
+        if optional:
+            return "NOT_AVAILABLE"
+        if run.status == "RUNNING" and key == first_incomplete:
+            return "RUNNING"
+        if run.status == "FAILED" and key == first_incomplete:
+            return "FAILED"
+        if run.status in {"WAITING_CALIBRATION", "BLOCKED"} and key == first_incomplete:
+            return "BLOCKED"
+        if run.status == "SUCCEEDED":
+            return "NOT_AVAILABLE"
+        if first_incomplete and key != first_incomplete:
+            return "BLOCKED" if run.status in {"FAILED", "BLOCKED"} else "PENDING"
+        return "PENDING"
+
+    return [
+        {
+            "key": key,
+            "order": order,
+            "level": level,
+            "status": stage_status(
+                key,
+                optional=optional,
+                output_count=len(products_by_level[level]),
+                expected_output_count=expected,
+            ),
+            "preview_kind": preview_kind,
+            "optional": optional,
+            "expected_output_count": expected,
+            "products": products_by_level[level],
+        }
+        for order, (key, level, preview_kind, optional, expected) in enumerate(
+            definitions, start=1
+        )
+    ]
+
+
 @router.get("/api/v1/products", response_model=list[ProductRead])
 async def list_products(
     session: SessionDep,
@@ -929,6 +1051,37 @@ def _finite_list(values: np.ndarray) -> list[float | None]:
     return [float(value) if np.isfinite(value) else None for value in values]
 
 
+def _image_preview(
+    image: np.ndarray,
+    *,
+    max_width: int = 768,
+    max_height: int = 384,
+) -> list[list[float | None]]:
+    """Return an aspect-preserving max-pooled preview of a detector image.
+
+    Thin echelle orders are easy to lose with point sampling or averaging. Finite
+    max pooling keeps those narrow bright structures visible while bounding the
+    JSON payload and the browser-side raster workload.
+    """
+    if image.ndim != 2:
+        raise SpriteError("FITS_IMAGE_INVALID", "product image must be two-dimensional")
+    sampled = downsample_image(image, max_width=max_width, max_height=max_height)
+    return [_finite_list(row) for row in sampled]
+
+
+def _image_preview_payload(image: np.ndarray) -> dict[str, Any]:
+    sampled = _image_preview(image)
+    return {
+        "shape": list(image.shape),
+        "preview_shape": [len(sampled), len(sampled[0]) if sampled else 0],
+        "preview_reducer": "finite-max-pool-v1",
+        "minimum": float(np.nanmin(image)),
+        "maximum": float(np.nanmax(image)),
+        "median": float(np.nanmedian(image)),
+        "image": sampled,
+    }
+
+
 @router.get("/api/v1/products/{product_id}/preview")
 async def product_preview(
     product_id: UUID, session: SessionDep, _: CurrentUser = Depends(current_user)
@@ -940,19 +1093,29 @@ async def product_preview(
     if product.level == ProductLevel.QUICKLOOK:
         return {"product_id": product.id, "level": product.level, **json.loads(path.read_text())}
     with fits.open(path, checksum=True, memmap=False) as hdul:
+        if product.level in {ProductLevel.L0, ProductLevel.L1}:
+            image = np.asarray(
+                hdul["SCI"].data if "SCI" in hdul else hdul[0].data,
+                dtype=np.float64,
+            )
+            return {
+                "product_id": product.id,
+                "level": product.level,
+                **_image_preview_payload(image),
+            }
         if "SPECTRUM" in hdul:
             table = hdul["SPECTRUM"].data
         elif len(hdul) > 1 and isinstance(hdul[1], fits.BinTableHDU):
             table = hdul[1].data
         else:
-            image = np.asarray(hdul["SCI"].data if "SCI" in hdul else hdul[0].data)
+            image = np.asarray(
+                hdul["SCI"].data if "SCI" in hdul else hdul[0].data,
+                dtype=np.float64,
+            )
             return {
                 "product_id": product.id,
                 "level": product.level,
-                "shape": list(image.shape),
-                "minimum": float(np.nanmin(image)),
-                "maximum": float(np.nanmax(image)),
-                "median": float(np.nanmedian(image)),
+                **_image_preview_payload(image),
             }
         step = max(1, len(table) // 1200)
         names = list(table.names)

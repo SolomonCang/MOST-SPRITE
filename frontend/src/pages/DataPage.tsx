@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Box, CheckCircle2, ChevronRight, Download, FileLock2, GitBranch, Layers3, Search, Send, Undo2, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import { ESPaDOnSImportWizard } from "../components/ESPaDOnSImportWizard";
-import { Heatmap } from "../components/Heatmap";
 import { LineageView } from "../components/LineageView";
 import { Panel } from "../components/Panel";
-import { SpectrumChart } from "../components/SpectrumChart";
+import { ProcessingStageRail } from "../components/ProcessingStageRail";
+import { ProductVisualization } from "../components/ProductVisualization";
 import { StatusBadge } from "../components/StatusBadge";
 import { useI18n } from "../i18n/I18nProvider";
 import { api } from "../lib/api";
@@ -16,7 +16,8 @@ export function DataPage() {
   const { user } = useOutletContext<{ user?: CurrentUser }>();
   const { t, formatUtc } = useI18n();
   const queryClient = useQueryClient();
-  const [sequenceId, setSequenceId] = useState<string>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [sequenceId, setSequenceId] = useState<string | undefined>(() => searchParams.get("sequence") ?? undefined);
   const [productId, setProductId] = useState<string>();
   const [filter, setFilter] = useState("");
   const [modeFilter, setModeFilter] = useState<DataMode | "ALL">("ALL");
@@ -39,6 +40,7 @@ export function DataPage() {
   const qc = useQuery({ queryKey: ["qc", productId], queryFn: () => api.qc(productId!), enabled: Boolean(productId) });
   const lineage = useQuery({ queryKey: ["lineage", productId], queryFn: () => api.lineage(productId!), enabled: Boolean(productId) });
   const run = runs.data?.find((item) => item.sequence_id === sequenceId);
+  const stages = useQuery({ queryKey: ["processing-stages", run?.id], queryFn: () => api.processingStages(run!.id), enabled: Boolean(run?.id), refetchInterval: run?.status === "RUNNING" ? 1500 : false });
   const statuses = useMemo(() => [...new Set(sequences.data?.map((item) => item.status) ?? [])].sort(), [sequences.data]);
   const filteredSequences = useMemo(
     () => sequences.data?.filter((item) =>
@@ -48,11 +50,7 @@ export function DataPage() {
     ) ?? [],
     [filter, modeFilter, sequences.data, statusFilter],
   );
-  const isImagePreview = Boolean(preview.data?.image?.length);
   const isAdministrator = user?.role === "administrator";
-  const dqValues = preview.data?.columns?.DQ ?? [];
-  const flaggedPoints = dqValues.filter((value) => typeof value === "number" && value !== 0).length;
-  const finiteDqPoints = dqValues.filter((value) => typeof value === "number").length;
 
   const downloadMutation = useMutation({
     mutationFn: (id: string) => api.downloadProduct(id),
@@ -77,6 +75,7 @@ export function DataPage() {
   const selectImportedSequence = (id: string) => {
     setSequenceId(id);
     setProductId(undefined);
+    setSearchParams({ sequence: id });
   };
 
   return (
@@ -96,7 +95,7 @@ export function DataPage() {
           {sequences.isError && <div className="query-error">{t("common.networkError")}</div>}
           <div className="sequence-list" data-testid="sequence-list">
             {filteredSequences.map((sequence) => (
-              <button key={sequence.id} type="button" aria-pressed={sequence.id === sequenceId} className={sequence.id === sequenceId ? "selected" : ""} onClick={() => { setSequenceId(sequence.id); setProductId(undefined); }}>
+              <button key={sequence.id} type="button" aria-pressed={sequence.id === sequenceId} className={sequence.id === sequenceId ? "selected" : ""} onClick={() => { setSequenceId(sequence.id); setProductId(undefined); setSearchParams({ sequence: sequence.id }); }}>
                 <span className="mode-chip">{sequence.mode}</span>
                 <div><strong>{sequence.target_name}</strong><small>{formatUtc(sequence.created_at, true)} UTC</small><code>{sequence.id.slice(0, 8)}</code></div>
                 <StatusBadge value={sequence.status} subtle /><ChevronRight size={15} />
@@ -106,43 +105,18 @@ export function DataPage() {
           </div>
         </Panel>
 
-        <Panel title={t("data.products.title")} eyebrow={t("data.products.eyebrow")} className="products-panel" action={selectedSequence && <StatusBadge value={selectedSequence.mode} subtle />}>
+        <Panel title={t("data.stages.title")} eyebrow={t("data.stages.eyebrow")} className="products-panel" action={selectedSequence && <StatusBadge value={selectedSequence.mode} subtle />}>
           <div className="run-progress">
             <div><span>{t("data.products.run")}</span><strong>{run?.id.slice(0, 8) ?? t("data.products.noRun")}</strong><StatusBadge value={run?.status ?? "WAITING"} subtle /></div>
             <div className="progress-track"><i style={{ width: `${(run?.progress ?? 0) * 100}%` }} /></div>
           </div>
-          <div className="product-levels">
-            {(["L0", "QUICKLOOK", "L1", "L2", "L3"] as const).map((level) => {
-              const rows = products.data?.filter((item) => item.level === level) ?? [];
-              return (
-                <div className="level-column" key={level}>
-                  <header><span>{level === "QUICKLOOK" ? "QL" : level}</span><b>{rows.length}</b></header>
-                  {rows.slice(0, 8).map((product) => (
-                    <button data-testid={`product-${product.level}`} key={product.id} type="button" aria-pressed={product.id === productId} onClick={() => setProductId(product.id)} className={product.id === productId ? "selected" : ""}>
-                      <FileLock2 size={16} /><div><strong>{product.schema_version}</strong><small>{product.id.slice(0, 8)}</small><time>{formatUtc(product.created_at)} UTC</time></div><StatusBadge value={product.qc_flag} subtle />
-                    </button>
-                  ))}
-                  {!rows.length && <span className="level-empty">{t("data.products.emptyLevel")}</span>}
-                </div>
-              );
-            })}
-          </div>
+          <p className="stage-rail-intro">{t("data.stages.subtitle")}</p>
+          {stages.isError && <div className="query-error">{t("common.networkError")}</div>}
+          <ProcessingStageRail runId={run?.id} stages={stages.data} loading={stages.isLoading} />
         </Panel>
 
         <Panel title={selectedProduct ? `${selectedProduct.level} · ${t("data.preview.title")}` : t("data.preview.title")} eyebrow={selectedProduct?.level === "QUICKLOOK" ? t("data.preview.quicklook") : t("data.preview.formal")} className="spectrum-panel" action={selectedProduct && <div className="product-ident"><StatusBadge value={selectedProduct.qc_flag} subtle /><code>{selectedProduct.sha256.slice(0, 12)}</code></div>}>
-          {isImagePreview
-            ? <Heatmap values={preview.data?.image} emptyLabel={t("observe.quicklook.empty")} scaleLabel={t("observe.quicklook.scale")} unit={t("observe.quicklook.unit")} />
-            : preview.data?.columns
-              ? (
-                <div className="science-chart-stack">
-                  {selectedProduct?.level === "L2" && <><SpectrumChart columns={preview.data.columns} series={["FLUX"]} /><SpectrumChart columns={preview.data.columns} series={["VAR"]} compact /></>}
-                  {selectedProduct?.level === "L3" && selectedProduct.mode !== "NONPOL" && <><SpectrumChart columns={preview.data.columns} series={["I"]} compact /><SpectrumChart columns={preview.data.columns} series={["P", "N1", "N2"]} /><SpectrumChart columns={preview.data.columns} series={["ERR_P", "ERR_N1", "ERR_N2"]} compact /></>}
-                  {selectedProduct?.level === "L3" && selectedProduct.mode === "NONPOL" && <><SpectrumChart columns={preview.data.columns} series={["TARGET", "SKY", "I"]} /><SpectrumChart columns={preview.data.columns} series={["ALPHA"]} compact /><SpectrumChart columns={preview.data.columns} series={["ERR_TARGET", "ERR_SKY", "ERR_I"]} compact /></>}
-                  {selectedProduct?.level !== "L2" && selectedProduct?.level !== "L3" && <SpectrumChart columns={preview.data.columns} series={["FLUX", "I"]} />}
-                  {finiteDqPoints > 0 && <div className="dq-summary"><span>DQ</span><strong>{flaggedPoints} / {finiteDqPoints}</strong><div className="progress-track"><i style={{ width: `${finiteDqPoints ? (flaggedPoints / finiteDqPoints) * 100 : 0}%` }} /></div><small>{t("data.preview.dqSummary")}</small></div>}
-                </div>
-              )
-              : <div className="image-summary"><strong>{preview.data?.shape?.join(" × ") ?? "—"}</strong><div><span>MIN <b>{preview.data?.minimum?.toFixed(2) ?? "—"}</b></span><span>MEDIAN <b>{preview.data?.median?.toFixed(2) ?? "—"}</b></span><span>MAX <b>{preview.data?.maximum?.toFixed(2) ?? "—"}</b></span></div></div>}
+          <ProductVisualization product={selectedProduct} preview={preview.data} loading={preview.isLoading} error={preview.isError} />
           {selectedProduct && (
             <>
               <div className="product-meta">

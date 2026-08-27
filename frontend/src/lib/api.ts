@@ -16,6 +16,7 @@ import type {
   ProcessingRun,
   ProcessingRunAccepted,
   ProcessingRunRequest,
+  ProcessingStage,
   Product,
   QCResult,
   Sequence,
@@ -132,6 +133,8 @@ export const api = {
   processingRuns: () => apiFetch<ProcessingRun[]>("/api/v1/processing-runs"),
   processingRun: (id: string) =>
     apiFetch<ProcessingRun>(`/api/v1/processing-runs/${id}`),
+  processingStages: (id: string) =>
+    apiFetch<ProcessingStage[]>(`/api/v1/processing-runs/${id}/stages`),
   createProcessingRun: (
     payload: ProcessingRunRequest,
     key = makeIdempotencyKey("process"),

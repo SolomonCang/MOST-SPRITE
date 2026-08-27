@@ -18,7 +18,7 @@ describe("RoleGate", () => {
         <span>protected content</span>
       </RoleGate>,
     );
-    expect(screen.getByText("此工作区受权限保护")).toBeInTheDocument();
+    expect(screen.getByText("无权访问此工作区")).toBeInTheDocument();
     expect(screen.queryByText("protected content")).not.toBeInTheDocument();
   });
 

@@ -16,12 +16,22 @@ MOST-SPRITE 是依据 [`ARCHITECTURE.md`](ARCHITECTURE.md) 建立的光谱偏振
 需要 Docker Compose：
 
 ```bash
-docker compose up --build
+bash scripts/start.sh
+```
+
+或使用 Make 入口：
+
+```bash
+make start
 ```
 
 打开 `http://localhost:8080`。API、OpenAPI 和健康检查分别位于
 `http://localhost:8000`、`http://localhost:8000/docs` 和
-`http://localhost:8000/healthz`。Compose 明确使用开发观察员身份；不会连接任何真实设备。
+`http://localhost:8000/healthz`。当前测试阶段，Compose 明确使用开发管理员身份，客户端可访问
+全部应用工作流；该设置仅用于开发认证，不会授予宿主机 root 权限，也不会连接任何真实设备。
+Compose 默认从仓库同级的
+`../MOST-SPRITE-testdata/cadc-cache/cadc-espadons-ad-leo-v1` 只读挂载公开测试数据；如果数据位于
+其他位置，可在启动前设置 `SPRITE_CADC_IMPORT_PATH=/absolute/path/to/dataset`。
 
 前端根入口是系统仪表盘：身份、配置、服务健康、审计和界面设置保留在平台层。仪表盘会在独立
 标签页打开观测控制台、仪器工程台和数据处理台；三者拥有各自的全屏外壳和权限上下文，不再共享

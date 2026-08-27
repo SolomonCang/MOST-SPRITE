@@ -5,7 +5,7 @@ interface StatusBadgeProps {
 
 const toneFor = (value: string): string => {
   const normalized = value.toUpperCase();
-  if (["SUCCEEDED", "COMMITTED", "READY", "PASS", "FRESH", "SAFE", "APPROVED", "HEALTHY"].includes(normalized)) {
+  if (["SUCCEEDED", "COMMITTED", "READY", "PASS", "FRESH", "SAFE", "APPROVED", "HEALTHY", "AVAILABLE"].includes(normalized)) {
     return "good";
   }
   if (["FAILED", "SAFE_FAULT", "FAIL", "SERIOUS", "EMERGENCY", "ABORTED", "BLOCKED"].includes(normalized)) {
@@ -14,7 +14,7 @@ const toneFor = (value: string): string => {
   if (["RUNNING", "EXPOSING", "READING", "QUEUED", "EXECUTING", "LOCKED", "CONNECTED"].includes(normalized)) {
     return "active";
   }
-  if (["PAUSED", "PAUSING", "WARNING", "UNVERIFIED", "SIMULATION_ONLY", "STALE", "UNLOCKED"].includes(normalized)) {
+  if (["PAUSED", "PAUSING", "WARNING", "UNVERIFIED", "SIMULATION_ONLY", "STALE", "UNLOCKED", "PARTIAL"].includes(normalized)) {
     return "warn";
   }
   return "neutral";

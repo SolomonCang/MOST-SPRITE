@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function completeSequence(page: Page, mode: "POL_Q" | "NONPOL", target: string) {
   await page.goto("/observe");
-  await expect(page.getByRole("heading", { name: "观测工作台" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "观测控制台" })).toBeVisible();
   await page.getByLabel("目标名称").fill(target);
   await page.getByTestId("mode-select").selectOption(mode);
   await expect(page.getByText("预检通过")).toBeVisible();
@@ -27,7 +27,7 @@ async function completeSequence(page: Page, mode: "POL_Q" | "NONPOL", target: st
   await expect(page.getByTestId("lineage-view")).toContainText("L0");
   await expect(page.getByTestId("lineage-view")).toContainText("L3");
   await expect(page.getByTestId("qc-list")).not.toContainText("此产品没有独立 QC 记录");
-  await expect(page.getByText("不可变", { exact: true })).toBeVisible();
+  await expect(page.getByText("不可修改", { exact: true })).toBeVisible();
 }
 
 test.describe.serial("MOST-SPRITE simulation vertical slice", () => {

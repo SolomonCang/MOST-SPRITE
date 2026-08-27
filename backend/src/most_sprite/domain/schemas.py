@@ -163,6 +163,25 @@ class ProductRead(ApiModel):
     created_at: datetime
 
 
+class ProcessingStageRead(ApiModel):
+    key: Literal["l0", "quicklook", "l1", "l2", "l3"]
+    order: int
+    level: ProductLevel
+    status: Literal[
+        "AVAILABLE",
+        "RUNNING",
+        "PENDING",
+        "PARTIAL",
+        "FAILED",
+        "BLOCKED",
+        "NOT_AVAILABLE",
+    ]
+    preview_kind: Literal["image", "spectrum"]
+    optional: bool = False
+    expected_output_count: int
+    products: list[ProductRead] = Field(default_factory=list)
+
+
 class ProductPublicationRequest(ApiModel):
     reason: str | None = Field(default=None, min_length=8, max_length=2048)
 

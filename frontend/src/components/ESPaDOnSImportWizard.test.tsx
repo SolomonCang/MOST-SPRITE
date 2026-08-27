@@ -171,17 +171,17 @@ describe("ESPaDOnSImportWizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "检查目录" }));
     expect(await screen.findByText("POL_Q · AD Leo · 4/4")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "校验清单并导入" }));
+    fireEvent.click(screen.getByRole("button", { name: "核对文件清单并导入" }));
     expect(await screen.findByText("生成 1 个偏振序列")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "构建 CalibrationSet" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成标定集" }));
     expect(await screen.findByText("0.0230 px")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("审批理由"), {
       target: { value: "公开数据科学回归质控通过" },
     });
-    fireEvent.click(screen.getByLabelText("我已检查并接受此 CalibrationSet 的全部警告"));
-    fireEvent.click(screen.getByRole("button", { name: "批准 CalibrationSet" }));
+    fireEvent.click(screen.getByLabelText("我已检查并接受此标定集的全部警告"));
+    fireEvent.click(screen.getByRole("button", { name: "批准标定集" }));
     expect(await screen.findByText("已由 admin 审批，可用于正式处理")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "处理选中的 1 个序列" }));
@@ -277,9 +277,9 @@ describe("ESPaDOnSImportWizard", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByLabelText("恢复已有检查")).toHaveValue(inspection.id);
+    expect(await screen.findByLabelText("继续上次检查")).toHaveValue(inspection.id);
     expect(await screen.findByText("POL_Q · HD 236928 · 4/4")).toBeInTheDocument();
     expect(await screen.findByText("42%")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "标定已构建" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "标定集已生成" })).toBeDisabled();
   });
 });

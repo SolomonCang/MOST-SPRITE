@@ -62,7 +62,9 @@ services:
       dockerfile: backend/Dockerfile
     command: ["sprite-api"]
     restart: unless-stopped
-    environment: *backend-env
+    environment:
+      <<: *backend-env
+      SPRITE_IMPORT_ROOTS: '{"ad-leo":"/imports/ad-leo"}'
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,6 +76,7 @@ services:
       - "8000:8000"
     volumes:
       - sprite-data:/data
+      - "${SPRITE_CADC_IMPORT_PATH:-../MOST-SPRITE-testdata/cadc-cache/cadc-espadons-ad-leo-v1}:/imports/ad-leo:ro"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
       interval: 5s
@@ -167,6 +170,10 @@ services:
       args:
         VITE_API_URL: http://localhost:8000
         VITE_WS_URL: ws://localhost:8000
+        # The one-click stack is for testing, so its browser client uses the
+        # administrator role and can exercise every application workflow.
+        VITE_DEV_USER: compose-admin
+        VITE_DEV_ROLE: administrator
     restart: unless-stopped
     depends_on:
       api:
