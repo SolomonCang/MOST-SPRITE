@@ -16,12 +16,13 @@ jobs:
   scientific-replay:
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    env:
-      SPRITE_TESTDATA_DIR: ${{ runner.temp }}/most-sprite-cadc-cache
-      SPRITE_REPLAY_ROOT: ${{ runner.temp }}/most-sprite-replays
-      SPRITE_CADC_CANDIDATE_DIR: ${{ runner.temp }}/most-sprite-candidate
     steps:
       - uses: actions/checkout@v4
+      - name: Configure external replay directories
+        run: |
+          echo "SPRITE_TESTDATA_DIR=$RUNNER_TEMP/most-sprite-cadc-cache" >> "$GITHUB_ENV"
+          echo "SPRITE_REPLAY_ROOT=$RUNNER_TEMP/most-sprite-replays" >> "$GITHUB_ENV"
+          echo "SPRITE_CADC_CANDIDATE_DIR=$RUNNER_TEMP/most-sprite-candidate" >> "$GITHUB_ENV"
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.9"
@@ -32,7 +33,7 @@ jobs:
       - run: uv sync --all-groups --locked
       - uses: actions/cache@v4
         with:
-          path: ${{ env.SPRITE_TESTDATA_DIR }}
+          path: ${{ runner.temp }}/most-sprite-cadc-cache
           key: cadc-espadons-${{ hashFiles('tests/data-manifests/cadc-espadons-*.yaml') }}
       - name: Fetch and verify all frozen ESPaDOnS datasets
         run: |
@@ -85,5 +86,5 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
           path: |
-            ${{ env.SPRITE_REPLAY_ROOT }}/*/regression-summary.json
-            ${{ env.SPRITE_CADC_CANDIDATE_DIR }}/receipt.json
+            ${{ runner.temp }}/most-sprite-replays/*/regression-summary.json
+            ${{ runner.temp }}/most-sprite-candidate/receipt.json
