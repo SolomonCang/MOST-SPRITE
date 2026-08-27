@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.9"
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --all-groups --locked
+      - run: uv run ruff check backend tests tools
+      - run: uv run mypy backend/src
+      - run: uv run python tools/check_gamse_manifest.py
+      - name: Verify frozen Alembic schema
+        env:
+          SPRITE_DATABASE_URL: sqlite+aiosqlite:///./.runtime/alembic-ci.db
+          SPRITE_AUTO_CREATE_SCHEMA: "false"
+        run: |
+          uv run alembic -c backend/alembic.ini upgrade head
+          uv run alembic -c backend/alembic.ini check
+      - name: Reject a GAMSE runtime dependency
+        run: |
+          if rg -n '(^|[[:space:]])(from|import)[[:space:]]+gamse' backend tests tools; then
+            exit 1
+          fi
+      - run: uv run pytest -q -m "not golden and not slow"
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: corepack enable
+      - run: corepack prepare pnpm@11.8.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm exec vitest run
+      - run: pnpm build
+
+  browser:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.9"
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: uv sync --all-groups --locked
+      - run: corepack enable
+      - run: corepack prepare pnpm@11.8.0 --activate
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+      - run: pnpm e2e
+        working-directory: frontend
+
+  containers:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose build api web

@@ -1,0 +1,55 @@
+name: CADC regression
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SPRITE_TESTDATA_DIR: ${{ runner.temp }}/most-sprite-cadc-cache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.9"
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --all-groups --locked
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.SPRITE_TESTDATA_DIR }}
+          key: cadc-espadons-${{ hashFiles('tests/data-manifests/cadc-espadons-ad-leo-v1.yaml') }}
+      - run: uv run python tools/testdata/fetch_cadc.py
+      - run: uv run pytest -q tests/golden/test_cadc_reference.py
+
+  numerical-candidate:
+    if: ${{ vars.SPRITE_CADC_CANDIDATE_URI != '' }}
+    runs-on: ubuntu-latest
+    needs: frozen-reference
+    env:
+      SPRITE_CADC_CANDIDATE_DIR: ${{ runner.temp }}/most-sprite-candidate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.9"
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --all-groups --locked
+      - name: Retrieve candidate bundle produced by the frozen reduction run
+        run: |
+          mkdir -p "$SPRITE_CADC_CANDIDATE_DIR"
+          curl --fail --location --retry 3 "${{ vars.SPRITE_CADC_CANDIDATE_URI }}" \
+            | tar -xz -C "$SPRITE_CADC_CANDIDATE_DIR"
+      - run: uv run pytest -q tests/golden/test_cadc_regression_bundle.py

@@ -1,0 +1,439 @@
+schema_version: 1
+manifest_id: cadc-espadons-ad-leo-v1
+source:
+  archive: CFHT
+  collection: CFHT
+  instrument: ESPaDOnS
+  target: AD Leo
+  observation_date: "2016-02-17"
+  tap_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/argus/sync
+  direct_data_base_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT
+  documentation: https://www1.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/en/doc/data/
+freeze:
+  generated_at: "2026-08-26T16:00:00+08:00"
+  public_access_verified_at: "2026-08-26"
+  public_date: UNVERIFIED
+  downloaded_at: null
+  checksum_algorithm: md5
+  note: Public availability, size and MD5 were verified with the official Direct Data Service. The TAP public-date query was unavailable during freeze, so no date was guessed.
+artifacts:
+  - observation_id: "1894668"
+    product_id: 1894668b
+    plane_uri: caom:CFHT/1894668b
+    artifact_uri: cadc:CFHT/1894668b.fits.fz
+    filename: 1894668b.fits.fz
+    role: BIAS
+    expected_bytes: 5339520
+    content_checksum: md5:5f0caa6d448d1ab661c7fed896a4528c
+    last_modified: "Wed, 10 Aug 2022 00:21:24 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894668b.fits.fz
+  - observation_id: "1894669"
+    product_id: 1894669b
+    plane_uri: caom:CFHT/1894669b
+    artifact_uri: cadc:CFHT/1894669b.fits.fz
+    filename: 1894669b.fits.fz
+    role: BIAS
+    expected_bytes: 5342400
+    content_checksum: md5:1b875077c9b42d6930149614bfae05bc
+    last_modified: "Wed, 27 Jul 2022 22:36:34 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894669b.fits.fz
+  - observation_id: "1894670"
+    product_id: 1894670b
+    plane_uri: caom:CFHT/1894670b
+    artifact_uri: cadc:CFHT/1894670b.fits.fz
+    filename: 1894670b.fits.fz
+    role: BIAS
+    expected_bytes: 5342400
+    content_checksum: md5:e414e59cb465192874ab91838c807668
+    last_modified: "Fri, 22 Jul 2022 03:22:57 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894670b.fits.fz
+  - observation_id: "1894671"
+    product_id: 1894671c
+    plane_uri: caom:CFHT/1894671c
+    artifact_uri: cadc:CFHT/1894671c.fits.fz
+    filename: 1894671c.fits.fz
+    role: COMPARISON
+    expected_bytes: 7663680
+    content_checksum: md5:626c78fa6f90b513189021f592877214
+    last_modified: "Thu, 16 Jun 2022 15:36:47 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894671c.fits.fz
+  - observation_id: "1894672"
+    product_id: 1894672f
+    plane_uri: caom:CFHT/1894672f
+    artifact_uri: cadc:CFHT/1894672f.fits.fz
+    filename: 1894672f.fits.fz
+    role: FLAT
+    expected_bytes: 12496320
+    content_checksum: md5:8905b487871f62053ac7baef882fc874
+    last_modified: "Wed, 10 Aug 2022 02:16:36 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894672f.fits.fz
+  - observation_id: "1894673"
+    product_id: 1894673f
+    plane_uri: caom:CFHT/1894673f
+    artifact_uri: cadc:CFHT/1894673f.fits.fz
+    filename: 1894673f.fits.fz
+    role: FLAT
+    expected_bytes: 12470400
+    content_checksum: md5:b11134b0d7bead642207258443ab280b
+    last_modified: "Sat, 23 Jul 2022 07:57:24 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894673f.fits.fz
+  - observation_id: "1894674"
+    product_id: 1894674f
+    plane_uri: caom:CFHT/1894674f
+    artifact_uri: cadc:CFHT/1894674f.fits.fz
+    filename: 1894674f.fits.fz
+    role: FLAT
+    expected_bytes: 12453120
+    content_checksum: md5:501a197be92384114845aa2801482023
+    last_modified: "Fri, 22 Jul 2022 19:18:12 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894674f.fits.fz
+  - observation_id: "1894675"
+    product_id: 1894675f
+    plane_uri: caom:CFHT/1894675f
+    artifact_uri: cadc:CFHT/1894675f.fits.fz
+    filename: 1894675f.fits.fz
+    role: FLAT
+    expected_bytes: 12441600
+    content_checksum: md5:c6ed5bcf846e0eef2bb1bb2f7ad818b5
+    last_modified: "Wed, 10 Aug 2022 08:29:46 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894675f.fits.fz
+  - observation_id: "1894676"
+    product_id: 1894676f
+    plane_uri: caom:CFHT/1894676f
+    artifact_uri: cadc:CFHT/1894676f.fits.fz
+    filename: 1894676f.fits.fz
+    role: FLAT
+    expected_bytes: 12435840
+    content_checksum: md5:7635093277160856de6885cc1836dfb4
+    last_modified: "Wed, 10 Aug 2022 00:21:50 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894676f.fits.fz
+  - observation_id: "1894677"
+    product_id: 1894677f
+    plane_uri: caom:CFHT/1894677f
+    artifact_uri: cadc:CFHT/1894677f.fits.fz
+    filename: 1894677f.fits.fz
+    role: FLAT
+    expected_bytes: 12430080
+    content_checksum: md5:c6d0407dc9c078de26c6937a3913ec9e
+    last_modified: "Sat, 23 Jul 2022 05:55:09 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894677f.fits.fz
+  - observation_id: "1894678"
+    product_id: 1894678f
+    plane_uri: caom:CFHT/1894678f
+    artifact_uri: cadc:CFHT/1894678f.fits.fz
+    filename: 1894678f.fits.fz
+    role: FLAT
+    expected_bytes: 12421440
+    content_checksum: md5:9a50504fa948db377de0c1935f9a4800
+    last_modified: "Wed, 10 Aug 2022 08:29:55 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894678f.fits.fz
+  - observation_id: "1894679"
+    product_id: 1894679f
+    plane_uri: caom:CFHT/1894679f
+    artifact_uri: cadc:CFHT/1894679f.fits.fz
+    filename: 1894679f.fits.fz
+    role: FLAT
+    expected_bytes: 12421440
+    content_checksum: md5:71379f78ccb86ed9ad475f98b5a4a5ce
+    last_modified: "Wed, 10 Aug 2022 08:30:07 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894679f.fits.fz
+  - observation_id: "1894680"
+    product_id: 1894680f
+    plane_uri: caom:CFHT/1894680f
+    artifact_uri: cadc:CFHT/1894680f.fits.fz
+    filename: 1894680f.fits.fz
+    role: FLAT
+    expected_bytes: 12415680
+    content_checksum: md5:03dd0eeb41ced55c07ebd75deef32317
+    last_modified: "Wed, 03 Aug 2022 21:50:20 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894680f.fits.fz
+  - observation_id: "1894681"
+    product_id: 1894681f
+    plane_uri: caom:CFHT/1894681f
+    artifact_uri: cadc:CFHT/1894681f.fits.fz
+    filename: 1894681f.fits.fz
+    role: FLAT
+    expected_bytes: 12415680
+    content_checksum: md5:b4e44c29ca23e4c34e68b4bd7833fccf
+    last_modified: "Tue, 26 Jul 2022 03:16:08 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894681f.fits.fz
+  - observation_id: "1894682"
+    product_id: 1894682a
+    plane_uri: caom:CFHT/1894682a
+    artifact_uri: cadc:CFHT/1894682a.fits.fz
+    filename: 1894682a.fits.fz
+    role: ALIGNMENT
+    expected_bytes: 9881280
+    content_checksum: md5:b5cde8ea564c57cf07e7c99c0f1861e1
+    last_modified: "Thu, 16 Jun 2022 15:37:00 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894682a.fits.fz
+  - observation_id: "1894876"
+    product_id: 1894876o
+    plane_uri: caom:CFHT/1894876o
+    artifact_uri: cadc:CFHT/1894876o.fits.fz
+    filename: 1894876o.fits.fz
+    role: SCIENCE_RAW_V
+    expected_bytes: 9313920
+    content_checksum: md5:95d267eadcfb0e689011609e8225b468
+    last_modified: "Wed, 03 Aug 2022 21:44:28 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894876o.fits.fz
+  - observation_id: "1894877"
+    product_id: 1894877o
+    plane_uri: caom:CFHT/1894877o
+    artifact_uri: cadc:CFHT/1894877o.fits.fz
+    filename: 1894877o.fits.fz
+    role: SCIENCE_RAW_V
+    expected_bytes: 9362880
+    content_checksum: md5:23c1cb45a751a51717d8ba4908ca5f32
+    last_modified: "Wed, 10 Aug 2022 02:26:23 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894877o.fits.fz
+  - observation_id: "1894878"
+    product_id: 1894878o
+    plane_uri: caom:CFHT/1894878o
+    artifact_uri: cadc:CFHT/1894878o.fits.fz
+    filename: 1894878o.fits.fz
+    role: SCIENCE_RAW_V
+    expected_bytes: 9305280
+    content_checksum: md5:2d80d9dfcb38336d5aa52809a9aa1246
+    last_modified: "Wed, 27 Jul 2022 01:48:03 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894878o.fits.fz
+  - observation_id: "1894879"
+    product_id: 1894879o
+    plane_uri: caom:CFHT/1894879o
+    artifact_uri: cadc:CFHT/1894879o.fits.fz
+    filename: 1894879o.fits.fz
+    role: SCIENCE_RAW_V
+    expected_bytes: 9383040
+    content_checksum: md5:ab561c2394caf87b06b551e0aefd9a86
+    last_modified: "Tue, 26 Jul 2022 03:20:26 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894879o.fits.fz
+  - observation_id: "1894880"
+    product_id: 1894880o
+    plane_uri: caom:CFHT/1894880o
+    artifact_uri: cadc:CFHT/1894880o.fits.fz
+    filename: 1894880o.fits.fz
+    role: SCIENCE_RAW_Q
+    expected_bytes: 9423360
+    content_checksum: md5:5e765725b43b5885e8ffbb6fe6512305
+    last_modified: "Sat, 23 Jul 2022 05:06:03 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894880o.fits.fz
+  - observation_id: "1894881"
+    product_id: 1894881o
+    plane_uri: caom:CFHT/1894881o
+    artifact_uri: cadc:CFHT/1894881o.fits.fz
+    filename: 1894881o.fits.fz
+    role: SCIENCE_RAW_Q
+    expected_bytes: 9000000
+    content_checksum: md5:199f8612bc8eae0c2e9d896a2d55b6d9
+    last_modified: "Wed, 10 Aug 2022 02:26:32 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894881o.fits.fz
+  - observation_id: "1894882"
+    product_id: 1894882o
+    plane_uri: caom:CFHT/1894882o
+    artifact_uri: cadc:CFHT/1894882o.fits.fz
+    filename: 1894882o.fits.fz
+    role: SCIENCE_RAW_Q
+    expected_bytes: 8884800
+    content_checksum: md5:826780e009c0e5f72736da69276f77bc
+    last_modified: "Wed, 10 Aug 2022 02:26:46 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894882o.fits.fz
+  - observation_id: "1894883"
+    product_id: 1894883o
+    plane_uri: caom:CFHT/1894883o
+    artifact_uri: cadc:CFHT/1894883o.fits.fz
+    filename: 1894883o.fits.fz
+    role: SCIENCE_RAW_Q
+    expected_bytes: 9002880
+    content_checksum: md5:d429ce6970b028387260cf375816d377
+    last_modified: "Fri, 22 Jul 2022 18:27:57 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894883o.fits.fz
+  - observation_id: "1894884"
+    product_id: 1894884o
+    plane_uri: caom:CFHT/1894884o
+    artifact_uri: cadc:CFHT/1894884o.fits.fz
+    filename: 1894884o.fits.fz
+    role: SCIENCE_RAW_U
+    expected_bytes: 8879040
+    content_checksum: md5:ab012c7da58eb9a96235b5b1e0c70efc
+    last_modified: "Wed, 10 Aug 2022 04:18:06 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894884o.fits.fz
+  - observation_id: "1894885"
+    product_id: 1894885o
+    plane_uri: caom:CFHT/1894885o
+    artifact_uri: cadc:CFHT/1894885o.fits.fz
+    filename: 1894885o.fits.fz
+    role: SCIENCE_RAW_U
+    expected_bytes: 9264960
+    content_checksum: md5:067411a8f05012b3fb4e140925ccb414
+    last_modified: "Wed, 10 Aug 2022 08:37:59 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894885o.fits.fz
+  - observation_id: "1894886"
+    product_id: 1894886o
+    plane_uri: caom:CFHT/1894886o
+    artifact_uri: cadc:CFHT/1894886o.fits.fz
+    filename: 1894886o.fits.fz
+    role: SCIENCE_RAW_U
+    expected_bytes: 9313920
+    content_checksum: md5:2f56327016d5bd2496b4f5c9149bc38d
+    last_modified: "Wed, 27 Jul 2022 03:54:29 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894886o.fits.fz
+  - observation_id: "1894887"
+    product_id: 1894887o
+    plane_uri: caom:CFHT/1894887o
+    artifact_uri: cadc:CFHT/1894887o.fits.fz
+    filename: 1894887o.fits.fz
+    role: SCIENCE_RAW_U
+    expected_bytes: 9331200
+    content_checksum: md5:a32f76740700f21e865c24a9ae6025b3
+    last_modified: "Wed, 03 Aug 2022 22:32:07 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894887o.fits.fz
+  - observation_id: "1894876"
+    product_id: 1894876i
+    plane_uri: caom:CFHT/1894876i
+    artifact_uri: cadc:CFHT/1894876i.fits
+    filename: 1894876i.fits
+    role: REFERENCE_INTENSITY_V
+    expected_bytes: 10307520
+    content_checksum: md5:06488fee6410b5dd6667b142ebbeabf6
+    last_modified: "Wed, 27 Jul 2022 21:29:01 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894876i.fits
+  - observation_id: "1894877"
+    product_id: 1894877i
+    plane_uri: caom:CFHT/1894877i
+    artifact_uri: cadc:CFHT/1894877i.fits
+    filename: 1894877i.fits
+    role: REFERENCE_INTENSITY_V
+    expected_bytes: 10307520
+    content_checksum: md5:3ddfd9081ec1b255a146e1941d98a611
+    last_modified: "Sat, 23 Jul 2022 05:05:41 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894877i.fits
+  - observation_id: "1894878"
+    product_id: 1894878i
+    plane_uri: caom:CFHT/1894878i
+    artifact_uri: cadc:CFHT/1894878i.fits
+    filename: 1894878i.fits
+    role: REFERENCE_INTENSITY_V
+    expected_bytes: 10307520
+    content_checksum: md5:eee0fd3d30d7889951aafc6e3aee8aad
+    last_modified: "Fri, 22 Jul 2022 18:26:49 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894878i.fits
+  - observation_id: "1894879"
+    product_id: 1894879i
+    plane_uri: caom:CFHT/1894879i
+    artifact_uri: cadc:CFHT/1894879i.fits
+    filename: 1894879i.fits
+    role: REFERENCE_INTENSITY_V
+    expected_bytes: 10307520
+    content_checksum: md5:f5c11b62e30c10026ceecf8baaac2ed4
+    last_modified: "Fri, 22 Jul 2022 03:24:45 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894879i.fits
+  - observation_id: "1894880"
+    product_id: 1894880i
+    plane_uri: caom:CFHT/1894880i
+    artifact_uri: cadc:CFHT/1894880i.fits
+    filename: 1894880i.fits
+    role: REFERENCE_INTENSITY_Q
+    expected_bytes: 10307520
+    content_checksum: md5:862a8ea37433d5280724ecb7f5d0eeb7
+    last_modified: "Fri, 22 Jul 2022 18:27:04 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894880i.fits
+  - observation_id: "1894881"
+    product_id: 1894881i
+    plane_uri: caom:CFHT/1894881i
+    artifact_uri: cadc:CFHT/1894881i.fits
+    filename: 1894881i.fits
+    role: REFERENCE_INTENSITY_Q
+    expected_bytes: 10307520
+    content_checksum: md5:5584f0d3e4a6b09dd24d0c08c910c862
+    last_modified: "Wed, 03 Aug 2022 21:52:53 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894881i.fits
+  - observation_id: "1894882"
+    product_id: 1894882i
+    plane_uri: caom:CFHT/1894882i
+    artifact_uri: cadc:CFHT/1894882i.fits
+    filename: 1894882i.fits
+    role: REFERENCE_INTENSITY_Q
+    expected_bytes: 10307520
+    content_checksum: md5:d75759e3eb17594f42941b169c266993
+    last_modified: "Tue, 26 Jul 2022 03:20:30 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894882i.fits
+  - observation_id: "1894883"
+    product_id: 1894883i
+    plane_uri: caom:CFHT/1894883i
+    artifact_uri: cadc:CFHT/1894883i.fits
+    filename: 1894883i.fits
+    role: REFERENCE_INTENSITY_Q
+    expected_bytes: 10307520
+    content_checksum: md5:14a5dfb82944f415669776b4daf98f18
+    last_modified: "Wed, 27 Jul 2022 01:30:04 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894883i.fits
+  - observation_id: "1894884"
+    product_id: 1894884i
+    plane_uri: caom:CFHT/1894884i
+    artifact_uri: cadc:CFHT/1894884i.fits
+    filename: 1894884i.fits
+    role: REFERENCE_INTENSITY_U
+    expected_bytes: 10307520
+    content_checksum: md5:31407356c36e72329ff4bee2799e8a50
+    last_modified: "Wed, 10 Aug 2022 03:02:21 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894884i.fits
+  - observation_id: "1894885"
+    product_id: 1894885i
+    plane_uri: caom:CFHT/1894885i
+    artifact_uri: cadc:CFHT/1894885i.fits
+    filename: 1894885i.fits
+    role: REFERENCE_INTENSITY_U
+    expected_bytes: 10307520
+    content_checksum: md5:3dcbab99d1fea4fd438b9f6ada9c6a33
+    last_modified: "Wed, 10 Aug 2022 03:14:17 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894885i.fits
+  - observation_id: "1894886"
+    product_id: 1894886i
+    plane_uri: caom:CFHT/1894886i
+    artifact_uri: cadc:CFHT/1894886i.fits
+    filename: 1894886i.fits
+    role: REFERENCE_INTENSITY_U
+    expected_bytes: 10307520
+    content_checksum: md5:aa8e67dc048185516917a42a8fb464b2
+    last_modified: "Wed, 27 Jul 2022 22:18:49 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894886i.fits
+  - observation_id: "1894887"
+    product_id: 1894887i
+    plane_uri: caom:CFHT/1894887i
+    artifact_uri: cadc:CFHT/1894887i.fits
+    filename: 1894887i.fits
+    role: REFERENCE_INTENSITY_U
+    expected_bytes: 10307520
+    content_checksum: md5:976d7f10ca62caa35b7cb67fcc813690
+    last_modified: "Wed, 10 Aug 2022 03:02:30 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894887i.fits
+  - observation_id: "1894876"
+    product_id: 1894876p
+    plane_uri: caom:CFHT/1894876p
+    artifact_uri: cadc:CFHT/1894876p.fits
+    filename: 1894876p.fits
+    role: REFERENCE_POLARIZATION_V
+    expected_bytes: 20586240
+    content_checksum: md5:1ac1356f30d6caf3fa5e22323302024e
+    last_modified: "Wed, 10 Aug 2022 02:26:16 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894876p.fits
+  - observation_id: "1894880"
+    product_id: 1894880p
+    plane_uri: caom:CFHT/1894880p
+    artifact_uri: cadc:CFHT/1894880p.fits
+    filename: 1894880p.fits
+    role: REFERENCE_POLARIZATION_Q
+    expected_bytes: 20586240
+    content_checksum: md5:54b71a7890c5d4fc2d767585db6640aa
+    last_modified: "Wed, 27 Jul 2022 22:03:57 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894880p.fits
+  - observation_id: "1894884"
+    product_id: 1894884p
+    plane_uri: caom:CFHT/1894884p
+    artifact_uri: cadc:CFHT/1894884p.fits
+    filename: 1894884p.fits
+    role: REFERENCE_POLARIZATION_U
+    expected_bytes: 20586240
+    content_checksum: md5:f1c5860762666847f8af486c43fc7c08
+    last_modified: "Wed, 03 Aug 2022 22:32:15 GMT"
+    direct_url: https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CFHT/1894884p.fits

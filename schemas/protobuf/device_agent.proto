@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package most_sprite.devices.v1;
+
+service DeviceAgent {
+  rpc Execute(DeviceCommand) returns (DeviceFeedback);
+  rpc GetState(StateRequest) returns (DeviceState);
+  rpc InjectFault(FaultRequest) returns (DeviceFeedback);
+}
+
+message DeviceCommand {
+  string command_id = 1;
+  string idempotency_key = 2;
+  string sequence_id = 3;
+  string device_id = 4;
+  string command_type = 5;
+  string parameters_json = 6;
+  string issued_at = 7;
+  string deadline = 8;
+  string expected_pre_state = 9;
+  string config_snapshot_id = 10;
+  int64 fencing_token = 11;
+}
+
+message DeviceFeedback {
+  string command_id = 1;
+  string status = 2;
+  string completed_at = 3;
+  string result_json = 4;
+  string error_code = 5;
+  string error_message = 6;
+}
+
+message StateRequest { string device_id = 1; }
+
+message DeviceState {
+  string device_id = 1;
+  string state_json = 2;
+  string observed_at = 3;
+  int64 fencing_token = 4;
+}
+
+message FaultRequest {
+  string fault_type = 1;
+  bool active = 2;
+  string parameters_json = 3;
+}

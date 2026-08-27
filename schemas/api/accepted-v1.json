@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://most-sprite.invalid/schemas/api/accepted-v1.json",
+  "title": "MOST-SPRITE accepted command v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["command_id", "status"],
+  "properties": {
+    "command_id": {"type": "string", "format": "uuid"},
+    "resource_id": {"type": ["string", "null"], "format": "uuid"},
+    "status": {"enum": ["ACCEPTED", "EXECUTING", "SUCCEEDED", "REJECTED", "TIMED_OUT", "FAILED"]}
+  }
+}

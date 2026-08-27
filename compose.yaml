@@ -1,0 +1,185 @@
+name: most-sprite
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sprite
+      POSTGRES_PASSWORD: sprite
+      POSTGRES_DB: sprite
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sprite"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - sprite-postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - sprite-redis:/data
+
+  device-agent:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["sprite-device-agent-sim"]
+    restart: unless-stopped
+    environment: &backend-env
+      SPRITE_APP_ENV: simulation
+      SPRITE_AUTH_MODE: dev
+      SPRITE_DATABASE_URL: postgresql+asyncpg://sprite:sprite@postgres:5432/sprite
+      SPRITE_REDIS_URL: redis://redis:6379/0
+      SPRITE_DATA_ROOT: /data
+      SPRITE_EMBEDDED_WORKERS: "false"
+      SPRITE_AUTO_CREATE_SCHEMA: "false"
+      SPRITE_DEVICE_AGENT_TARGET: device-agent:50051
+    volumes:
+      - sprite-data:/data
+
+  migrate:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["alembic", "-c", "backend/alembic.ini", "upgrade", "head"]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["sprite-api"]
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    volumes:
+      - sprite-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  control:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["sprite-control"]
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      device-agent:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - sprite-data:/data
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["sprite-scheduler"]
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - sprite-data:/data
+
+  quicklook:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["sprite-quicklook"]
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - sprite-data:/data
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["sprite-worker"]
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - sprite-data:/data
+
+  acquisition:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["sprite-acquisition"]
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - sprite-data:/data
+
+  web:
+    build:
+      context: frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+        VITE_WS_URL: ws://localhost:8000
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  sprite-postgres:
+  sprite-redis:
+  sprite-data:

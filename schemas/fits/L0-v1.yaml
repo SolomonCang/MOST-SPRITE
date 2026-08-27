@@ -1,0 +1,44 @@
+schema_version: L0-v1
+authority: MOST-SPRITE
+immutability: atomic-part-fsync-rename
+primary:
+  dimensions: 2
+  required_keywords:
+    - SCHEMVER
+    - PRODLEV
+    - DATAMODE
+    - STOKES
+    - NORMSTAT
+    - WAVETYPE
+    - SPECSYS
+    - TIMESYS
+    - SEQID
+    - GROUPID
+    - EXPID
+    - RAWFILE
+    - CMDID
+    - CONFIGID
+    - SUBIDX
+    - EXPTIME
+    - FR1CMD
+    - FR1MEAS
+    - FR3CMD
+    - FR3MEAS
+    - DATE-OBS
+    - DATE-END
+    - PIPENAME
+    - PIPEVER
+    - SWCOMMIT
+    - CALVER
+    - MODVER
+    - MUELLVER
+    - CHANMAP
+    - QCFLAG
+    - CHANMAP
+    - QCFLAG
+    - CHECKSUM
+    - DATASUM
+extensions:
+  TELEMETRY: {required: true, type: binary-table}
+  PROVENANCE: {required: true, type: binary-table}
+publication_allowed: false

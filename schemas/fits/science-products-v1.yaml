@@ -1,0 +1,35 @@
+schema_version: 1
+common_primary_keywords:
+  - SCHEMVER
+  - PRODLEV
+  - DATAMODE
+  - STOKES
+  - NORMSTAT
+  - WAVETYPE
+  - SPECSYS
+  - TIMESYS
+  - SEQID
+  - CONFIGID
+  - PIPENAME
+  - PIPEVER
+  - SWCOMMIT
+  - CALVER
+  - MODVER
+  - MUELLVER
+  - QCFLAG
+  - CHECKSUM
+  - DATASUM
+products:
+  L1:
+    required_hdus: [SCI, VAR, DQ]
+  L2:
+    channel_role_keyword: CHANNEL_ROLE
+    required_columns: [ORDER, PIXEL, WAVE, FLUX, VAR, DQ]
+    polarimetric_roles: [O_BEAM, E_BEAM]
+    nonpolar_roles: [TARGET, SKY, DISABLED]
+  L3_POLAR:
+    required_columns: [WAVE, I, P, N1, N2, ERR_I, ERR_P, ERR_N1, ERR_N2, DQ]
+    covariance_columns: [COV_P_N1, COV_P_N2, COV_N1_N2]
+  L3_NONPOL:
+    required_columns: [WAVE, TARGET, SKY, ALPHA, I, ERR_TARGET, ERR_SKY, ERR_ALPHA, ERR_I, DQ]
+    forbidden_columns: [P, N1, N2, ERR_P, ERR_N1, ERR_N2, COV_P_N1, COV_P_N2, COV_N1_N2]

@@ -1,0 +1,6 @@
+schema_version: 1
+template_id: nonpol-v1
+mode: NONPOL
+subexposures: 1
+status: UNVERIFIED
+

@@ -1,0 +1,39 @@
+schema_version: 1
+version: simulation-v1
+status: UNVERIFIED
+detector:
+  physical_shape: [4096, 4096]
+  pixel_size_um: 15.0
+  simulation_shape: [256, 256]
+  gain_e_per_adu: 1.3
+  read_noise_e: 4.2
+  saturation_adu: 65535
+spectrograph:
+  simulation_order_count: 4
+  simulation_profile_sigma_px: 1.25
+  simulation_peak_adu: 160000.0
+  simulated_thar_lines_per_order: 8
+fibres:
+  POL_Q: {O_BEAM: SIM_O, E_BEAM: SIM_E}
+  POL_U: {O_BEAM: SIM_O, E_BEAM: SIM_E}
+  POL_V: {O_BEAM: SIM_O, E_BEAM: SIM_E}
+  NONPOL: {TARGET: SIM_A, SKY: SIM_C, DISABLED: SIM_B}
+wavelength:
+  type: UNVERIFIED
+  simulation_range_nm: [340.0, 1050.0]
+  velocity_correction: UNAPPLIED
+simulation_signal:
+  bias_adu: 800.0
+  read_noise_adu: 4.2
+  injected_fraction:
+    POL_Q: 0.002
+    POL_U: -0.0015
+    POL_V: 0.001
+  polar_throughput:
+    O_BEAM: 1.015
+    E_BEAM: 0.985
+  nonpolar_role_scale:
+    TARGET: 0.72
+    SKY: 0.08
+    DISABLED: 0.0005
+publication_allowed: false

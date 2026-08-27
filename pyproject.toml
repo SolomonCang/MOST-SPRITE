@@ -1,0 +1,92 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "most-sprite"
+version = "0.1.0"
+description = "MOST spectropolarimetric reduction, instrument-control, tracking and extraction platform"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "aiosqlite>=0.21",
+  "alembic>=1.16",
+  "astropy>=7.1",
+  "asyncpg>=0.30",
+  "celery[redis]>=5.5",
+  "fastapi>=0.116",
+  "grpcio>=1.74",
+  "httpx>=0.28",
+  "numpy>=2.2",
+  "prometheus-client>=0.22",
+  "protobuf>=6.31",
+  "pydantic-settings>=2.10",
+  "pyjwt[crypto]>=2.10",
+  "python-multipart>=0.0.20",
+  "pyyaml>=6.0.2",
+  "redis>=6.4",
+  "scipy>=1.16",
+  "sqlalchemy[asyncio]>=2.0.43",
+  "structlog>=25.4",
+  "uvicorn[standard]>=0.35",
+]
+
+[project.scripts]
+sprite-api = "most_sprite.cli:api_main"
+sprite-control = "most_sprite.cli:control_main"
+sprite-device-agent-sim = "most_sprite.cli:device_agent_main"
+sprite-acquisition = "most_sprite.cli:acquisition_main"
+sprite-quicklook = "most_sprite.cli:quicklook_main"
+sprite-scheduler = "most_sprite.cli:scheduler_main"
+sprite-worker = "most_sprite.cli:worker_main"
+sprite-smoke-l0 = "most_sprite.cli:smoke_l0_main"
+
+[dependency-groups]
+dev = [
+  "grpcio-tools>=1.74",
+  "hypothesis>=6.138",
+  "jsonschema>=4.25",
+  "mypy>=1.17",
+  "pytest>=8.4",
+  "pytest-asyncio>=1.1",
+  "pytest-cov>=6.2",
+  "ruff>=0.12",
+  "types-redis>=4.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/src/most_sprite"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+  "integration: requires composed services",
+  "golden: requires the external CADC cache",
+  "slow: performs full-size detector checks",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC"]
+ignore = [
+  # FastAPI dependency injection intentionally uses call expressions in defaults.
+  "B008",
+  # Atomic FITS commits require the synchronous pathlib/fsync primitives at the
+  # process boundary; callers already isolate them from request concurrency.
+  "ASYNC240",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/src/most_sprite/schemas/generated/*" = ["ALL"]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["most_sprite"]
+mypy_path = "backend/src"
+check_untyped_defs = true
+warn_unused_ignores = true
+ignore_missing_imports = true

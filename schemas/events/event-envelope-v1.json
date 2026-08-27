@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://most-sprite.invalid/schemas/events/event-envelope-v1.json",
+  "title": "MOST-SPRITE event envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "schema_version", "occurred_at", "correlation_id", "payload"],
+  "properties": {
+    "cursor": {"type": ["integer", "null"], "minimum": 0},
+    "event_id": {"type": "string", "format": "uuid"},
+    "event_type": {
+      "enum": [
+        "raw_file.committed.v1",
+        "sequence.state.changed.v1",
+        "device.state.changed.v1",
+        "processing_run.state.changed.v1",
+        "alarm.raised.v1"
+      ]
+    },
+    "schema_version": {"const": 1},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "correlation_id": {"type": "string"},
+    "causation_id": {"type": ["string", "null"]},
+    "sequence_id": {"type": ["string", "null"], "format": "uuid"},
+    "group_id": {"type": ["string", "null"], "format": "uuid"},
+    "exposure_id": {"type": ["string", "null"], "format": "uuid"},
+    "config_snapshot_id": {"type": ["string", "null"], "format": "uuid"},
+    "payload": {"type": "object"}
+  }
+}

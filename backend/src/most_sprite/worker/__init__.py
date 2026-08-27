@@ -1,0 +1,1 @@
+"""Celery-backed scientific worker."""
