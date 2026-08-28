@@ -6,8 +6,9 @@
 为 `/healthz`，容器级健康状态可通过 `docker compose ps` 查看。首次启动会创建 PostgreSQL、
 Redis 和数据具名卷，并加载 `UNVERIFIED` 的 `simulation-v1` 配置快照。
 
-开发栈使用 `compose-observer / observer` 身份。工程与管理页面会因角色不足显示权限保护界面；
-后端仍对每个写操作独立校验角色、`Idempotency-Key` 并追加审计记录。
+开发栈从本机环境读取 `SPRITE_LOCAL_AUTH_SECRET`，首次打开默认登录 `administrator` 超级管理员。
+右上角账户菜单可切换 `observer`、`instrument-engineer`、`data-reducer` 或退出登录；不需要输入账号
+密码，密钥也不会进入浏览器。后端仍对每个写操作独立校验角色、`Idempotency-Key` 并追加审计记录。
 
 ## 观测流程
 

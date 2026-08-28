@@ -7,12 +7,8 @@ RUN pnpm install --frozen-lockfile
 COPY . /app
 ARG VITE_API_URL=http://localhost:8000
 ARG VITE_WS_URL=ws://localhost:8000
-ARG VITE_DEV_USER=compose-observer
-ARG VITE_DEV_ROLE=observer
 ENV VITE_API_URL=$VITE_API_URL \
-    VITE_WS_URL=$VITE_WS_URL \
-    VITE_DEV_USER=$VITE_DEV_USER \
-    VITE_DEV_ROLE=$VITE_DEV_ROLE
+    VITE_WS_URL=$VITE_WS_URL
 RUN pnpm build
 
 FROM nginx:1.29-alpine

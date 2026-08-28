@@ -2,11 +2,13 @@ import type {
   AcceptedCommand,
   Alarm,
   ApiErrorBody,
+  AuthConfiguration,
   CalibrationRun,
   CalibrationSet,
   CurrentUser,
   DownloadedProduct,
   Exposure,
+  ImportArtifactPreview,
   ImportBatch,
   ImportInspection,
   ImportInspectionRequest,
@@ -27,11 +29,6 @@ import type {
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 export const WS_URL = import.meta.env.VITE_WS_URL ?? API_URL.replace(/^http/, "ws");
 
-const identityHeaders = (): Record<string, string> => ({
-  "X-SPRITE-User": import.meta.env.VITE_DEV_USER ?? "local-observer",
-  "X-SPRITE-Role": import.meta.env.VITE_DEV_ROLE ?? "observer",
-});
-
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -48,10 +45,10 @@ export function makeIdempotencyKey(scope: string): string {
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
+    credentials: "include",
     headers: {
       Accept: "application/json",
       ...(init.body ? { "Content-Type": "application/json" } : {}),
-      ...identityHeaders(),
       ...init.headers,
     },
   });
@@ -80,7 +77,7 @@ function downloadFilename(response: Response, productId: string): string {
 
 async function downloadProduct(productId: string): Promise<DownloadedProduct> {
   const response = await fetch(`${API_URL}/api/v1/products/${productId}/download`, {
-    headers: identityHeaders(),
+    credentials: "include",
   });
   if (!response.ok) {
     const fallback: ApiErrorBody = {
@@ -100,6 +97,14 @@ async function downloadProduct(productId: string): Promise<DownloadedProduct> {
 }
 
 export const api = {
+  authConfiguration: () =>
+    apiFetch<AuthConfiguration>("/api/v1/auth/configuration"),
+  login: (accountId: string) =>
+    apiFetch<CurrentUser>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ account_id: accountId }),
+    }),
+  logout: () => apiFetch<void>("/api/v1/auth/logout", { method: "POST" }),
   me: () => apiFetch<CurrentUser>("/api/v1/me"),
   instrument: () => apiFetch<InstrumentSnapshot>("/api/v1/instrument/state"),
   alarms: () => apiFetch<Alarm[]>("/api/v1/alarms"),
@@ -130,6 +135,7 @@ export const api = {
     apiFetch<Product[]>(
       `/api/v1/products${sequenceId ? `?sequence_id=${encodeURIComponent(sequenceId)}` : ""}`,
     ),
+  product: (id: string) => apiFetch<Product>(`/api/v1/products/${id}`),
   processingRuns: () => apiFetch<ProcessingRun[]>("/api/v1/processing-runs"),
   processingRun: (id: string) =>
     apiFetch<ProcessingRun>(`/api/v1/processing-runs/${id}`),
@@ -148,6 +154,10 @@ export const api = {
     apiFetch<ImportInspection[]>("/api/v1/import-inspections"),
   importInspection: (id: string) =>
     apiFetch<ImportInspection>(`/api/v1/import-inspections/${id}`),
+  importArtifactPreview: (inspectionId: string, relativePath: string) =>
+    apiFetch<ImportArtifactPreview>(
+      `/api/v1/import-inspections/${inspectionId}/preview?relative_path=${encodeURIComponent(relativePath)}`,
+    ),
   createImportInspection: (
     payload: ImportInspectionRequest,
     key = makeIdempotencyKey("inspect"),

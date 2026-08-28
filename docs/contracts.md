@@ -14,7 +14,7 @@
 }
 ```
 
-`data_reducer` 可以检查与导入目录、构建标定并启动处理；`administrator` 批准整个 `CalibrationSet`、接受 WARNING 理由并发布或撤回 L3。所有已登录角色可以读取状态、QC、预览、血缘和授权下载。开发模式使用 `X-SPRITE-User` 与 `X-SPRITE-Role`；生产模式只接受已配置的 OIDC 身份。
+`data_reducer` 可以检查与导入目录、构建标定并启动处理；`administrator` 批准整个 `CalibrationSet`、接受 WARNING 理由并发布或撤回 L3。所有已登录角色可以读取状态、QC、预览、血缘和授权下载。开发模式由 `GET /api/v1/auth/configuration` 提供预置账户，`POST /api/v1/auth/login` 选择账户并签发 HttpOnly 会话 Cookie，`POST /api/v1/auth/logout` 清除会话；签名密钥只从服务端 `SPRITE_LOCAL_AUTH_SECRET` 读取。身份请求头默认禁用。生产模式只接受已配置的 OIDC 身份，且不暴露本机账户登录流程。
 
 ## ESPaDOnS 导入与处理接口
 

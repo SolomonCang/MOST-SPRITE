@@ -44,6 +44,21 @@ test.describe.serial("MOST-SPRITE simulation vertical slice", () => {
     await expect(observation).toHaveAttribute("target", "_blank");
   });
 
+  test("switches local accounts and signs out without a password", async ({ page }) => {
+    await page.goto("/admin");
+    await page.locator(".account-menu > summary").click();
+    await page.getByRole("button", { name: /Local Observer/ }).click();
+    await expect(page.locator(".system-account")).toContainText("观测人员");
+
+    await page.locator(".account-menu > summary").click();
+    await page.getByRole("button", { name: "退出登录" }).click();
+    await expect(page.getByRole("heading", { name: "选择本机账户登录" })).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
+
+    await page.getByRole("button", { name: /Local Administrator/ }).click();
+    await expect(page.getByRole("heading", { name: "系统仪表盘" })).toBeVisible();
+  });
+
   test("persists Chinese/English and light/dark preferences", async ({ page }) => {
     await page.goto("/observe");
     await page.getByTestId("locale-en").click();

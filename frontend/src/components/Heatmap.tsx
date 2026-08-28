@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../i18n/I18nProvider";
+import type { OrderAnnotation } from "../lib/types";
 
 type ScaleMode = "log" | "linear";
 
@@ -10,6 +11,7 @@ interface HeatmapProps {
   scaleLabel: string;
   unit: string;
   defaultScale?: ScaleMode;
+  orderAnnotations?: OrderAnnotation[];
 }
 
 interface RasterizedImage {
@@ -71,7 +73,15 @@ export function rasterizeImage(values: Array<Array<number | null>>, mode: ScaleM
   return { pixels, rows, columns, lower, upper };
 }
 
-export function Heatmap({ values, label = "CCD quicklook image", emptyLabel, scaleLabel, unit, defaultScale = "log" }: HeatmapProps) {
+export function Heatmap({
+  values,
+  label = "CCD quicklook image",
+  emptyLabel,
+  scaleLabel,
+  unit,
+  defaultScale = "log",
+  orderAnnotations = [],
+}: HeatmapProps) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scaleMode, setScaleMode] = useState<ScaleMode>(defaultScale);
@@ -117,10 +127,21 @@ export function Heatmap({ values, label = "CCD quicklook image", emptyLabel, sca
 
   if (!raster) return <div className="heatmap-empty">{emptyLabel}</div>;
 
+  const visibleAnnotations = orderAnnotations.filter((annotation) => (
+    annotation.points.length > 1
+    && annotation.points.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))
+  ));
+  const orderSummary = visibleAnnotations.map((annotation) => annotation.order).join(", ");
+
   return (
     <div className="heatmap-figure">
       <div className="heatmap-toolbar">
-        <span>{t("data.image.percentileRange")}</span>
+        <div className="heatmap-toolbar-copy">
+          <span>{t("data.image.percentileRange")}</span>
+          {visibleAnnotations.length > 0 && (
+            <b>{t("data.image.orderCount", { count: visibleAnnotations.length })}</b>
+          )}
+        </div>
         <div className="heatmap-scale-switch" role="group" aria-label={t("data.image.scaleMode")}>
           <button type="button" aria-pressed={scaleMode === "log"} onClick={() => setScaleMode("log")}>{t("data.image.log")}</button>
           <button type="button" aria-pressed={scaleMode === "linear"} onClick={() => setScaleMode("linear")}>{t("data.image.linear")}</button>
@@ -129,10 +150,43 @@ export function Heatmap({ values, label = "CCD quicklook image", emptyLabel, sca
       <div
         className="heatmap"
         role="img"
-        aria-label={`${label}; ${scaleMode} scale; display range ${raster.lower.toFixed(1)} to ${raster.upper.toFixed(1)} ${unit}`}
+        aria-label={`${label}; ${scaleMode} scale; display range ${raster.lower.toFixed(1)} to ${raster.upper.toFixed(1)} ${unit}${orderSummary ? `; orders ${orderSummary}` : ""}`}
         style={{ aspectRatio: `${raster.columns} / ${raster.rows}` }}
       >
         <canvas ref={canvasRef} data-testid="heatmap-canvas" aria-hidden="true" />
+        {visibleAnnotations.length > 0 && (
+          <div className="heatmap-order-overlay" data-testid="heatmap-order-overlay" aria-hidden="true">
+            <svg viewBox="0 0 1 1" preserveAspectRatio="none">
+              {visibleAnnotations.map((annotation) => (
+                <polyline
+                  key={annotation.order}
+                  points={annotation.points.map(([x, y]) => `${x},${y}`).join(" ")}
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </svg>
+            <div className="heatmap-order-labels">
+              {visibleAnnotations.map((annotation, index) => {
+                const first = annotation.points[0];
+                const last = annotation.points.at(-1) ?? first;
+                const vertical = Math.abs(last[1] - first[1]) > Math.abs(last[0] - first[0]);
+                const labelPoint = vertical
+                  ? annotation.points[Math.min(
+                    annotation.points.length - 1,
+                    Math.floor(annotation.points.length * (0.08 + (index % 4) * 0.08)),
+                  )]
+                  : first;
+                return (
+                  <span
+                    key={annotation.order}
+                    className={vertical ? "order-label-vertical" : "order-label-horizontal"}
+                    style={{ left: `${labelPoint[0] * 100}%`, top: `${labelPoint[1] * 100}%` }}
+                  >m={annotation.order}</span>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
       <div className="heatmap-scale"><span>{raster.lower.toFixed(0)}</span><i /><span>{raster.upper.toFixed(0)} {unit}</span><b>{scaleMode === "log" ? scaleLabel : t("data.image.linearIntensity")}</b></div>
     </div>

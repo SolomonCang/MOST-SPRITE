@@ -90,8 +90,13 @@ from most_sprite.domain.schemas import (
 )
 from most_sprite.errors import SpriteError
 from most_sprite.events import emit_event
-from most_sprite.imports import commit_import, inspect_import_directory
-from most_sprite.products.preview import downsample_image
+from most_sprite.imports import (
+    commit_import,
+    inspect_import_directory,
+    resolve_inspection_artifact,
+)
+from most_sprite.pipeline.instruments.espadons import parse_fits_section
+from most_sprite.products.preview import downsample_image, order_trace_annotations
 from most_sprite.products.processing import ensure_processing_run
 from most_sprite.provenance import record_audit
 
@@ -125,7 +130,11 @@ async def get_command(
 
 
 @router.post("/api/v1/sequences:validate", response_model=SequenceValidation)
-async def validate_sequence(payload: SequenceRequest, session: SessionDep) -> SequenceValidation:
+async def validate_sequence(
+    payload: SequenceRequest,
+    session: SessionDep,
+    _: CurrentUser = Depends(current_user),
+) -> SequenceValidation:
     snapshot = await active_config(session)
     return validate_sequence_request(payload, snapshot)
 
@@ -504,6 +513,54 @@ async def get_import_inspection(
             "IMPORT_INSPECTION_NOT_FOUND", "inspection does not exist", status_code=404
         )
     return inspection
+
+
+@router.get("/api/v1/import-inspections/{inspection_id}/preview")
+async def preview_import_artifact(
+    inspection_id: UUID,
+    session: SessionDep,
+    relative_path: Annotated[str, Query(min_length=1, max_length=2048)],
+    _: CurrentUser = Depends(current_user),
+) -> dict[str, Any]:
+    inspection = await session.get(ImportInspection, str(inspection_id))
+    if inspection is None:
+        raise SpriteError(
+            "IMPORT_INSPECTION_NOT_FOUND", "inspection does not exist", status_code=404
+        )
+    record, path = resolve_inspection_artifact(inspection, relative_path)
+    image_hdu = record.get("image_hdu")
+    if not isinstance(image_hdu, int):
+        raise SpriteError(
+            "FITS_PREVIEW_NOT_AVAILABLE",
+            "this inspected FITS artifact does not contain a two-dimensional image",
+            status_code=422,
+            details={"relative_path": relative_path, "role": record.get("role")},
+        )
+    try:
+        with fits.open(path, checksum=True, memmap=False) as hdul:
+            image = np.asarray(hdul[image_hdu].data, dtype=np.float64)
+            image_header = hdul[image_hdu].header.copy()
+    except (IndexError, OSError, TypeError, ValueError) as exc:
+        raise SpriteError(
+            "FITS_READ_FAILED",
+            f"cannot preview {path.name}: {exc}",
+            status_code=422,
+        ) from exc
+    annotations = await _inspection_order_annotations(
+        session,
+        inspection_id=inspection.id,
+        role=str(record.get("role", "UNKNOWN")),
+        image_shape=image.shape,
+        image_header=image_header,
+    )
+    return {
+        "inspection_id": inspection.id,
+        "relative_path": relative_path,
+        "role": record.get("role", "UNKNOWN"),
+        "detector": record.get("detector"),
+        "order_annotations": annotations,
+        **_image_preview_payload(image),
+    }
 
 
 @router.get("/api/v1/imports", response_model=list[ImportBatchRead])
@@ -1070,16 +1127,118 @@ def _image_preview(
 
 
 def _image_preview_payload(image: np.ndarray) -> dict[str, Any]:
+    finite = image[np.isfinite(image)]
+    if not finite.size:
+        raise SpriteError(
+            "FITS_IMAGE_EMPTY", "product image does not contain any finite samples"
+        )
     sampled = _image_preview(image)
     return {
         "shape": list(image.shape),
         "preview_shape": [len(sampled), len(sampled[0]) if sampled else 0],
         "preview_reducer": "finite-max-pool-v1",
-        "minimum": float(np.nanmin(image)),
-        "maximum": float(np.nanmax(image)),
-        "median": float(np.nanmedian(image)),
+        "minimum": float(np.min(finite)),
+        "maximum": float(np.max(finite)),
+        "median": float(np.median(finite)),
         "image": sampled,
     }
+
+
+def _read_calibration_trace(
+    calibration_set: CalibrationSet,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    try:
+        with fits.open(
+            Path(calibration_set.artifact_uri), checksum=True, memmap=False
+        ) as hdul:
+            table = hdul["TRACE"].data
+            return (
+                np.asarray(table["ORDER"], dtype=np.int32),
+                np.asarray(table["COMBINED_COEFF"], dtype=np.float64),
+            )
+    except (KeyError, OSError, TypeError, ValueError):
+        return None
+
+
+def _canonical_order_annotations(
+    calibration_set: CalibrationSet,
+    image_shape: tuple[int, int],
+) -> list[dict[str, object]]:
+    trace = _read_calibration_trace(calibration_set)
+    if trace is None:
+        return []
+    order_ids, coefficients = trace
+    return order_trace_annotations(
+        order_ids,
+        coefficients,
+        trace_shape=image_shape,
+    )
+
+
+async def _inspection_order_annotations(
+    session: AsyncSession,
+    *,
+    inspection_id: str,
+    role: str,
+    image_shape: tuple[int, int],
+    image_header: fits.Header,
+) -> list[dict[str, object]]:
+    if role not in {"FLAT", "THAR", "ALIGNMENT", "SCIENCE"}:
+        return []
+    import_batch = await session.scalar(
+        select(ImportBatch)
+        .where(ImportBatch.inspection_id == inspection_id)
+        .order_by(ImportBatch.created_at.desc())
+    )
+    if import_batch is None:
+        return []
+    calibration_set = await session.scalar(
+        select(CalibrationSet)
+        .where(CalibrationSet.import_batch_id == import_batch.id)
+        .order_by(CalibrationSet.created_at.desc())
+    )
+    if calibration_set is None:
+        return []
+    trace = _read_calibration_trace(calibration_set)
+    if trace is None:
+        return []
+
+    rows, columns = image_shape
+    try:
+        section = parse_fits_section(
+            str(image_header.get("DATASEC", f"[1:{columns},1:{rows}]")),
+            shape=image_shape,
+        )
+    except SpriteError:
+        return []
+    trace_shape = (
+        abs(section.x2 - section.x1) + 1,
+        abs(section.y2 - section.y1) + 1,
+    )
+
+    def canonical_to_raw(
+        dispersion: np.ndarray, center: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        raw_x = (
+            max(section.x1, section.x2) - 1 - center
+            if section.flip_x
+            else min(section.x1, section.x2) - 1 + center
+        )
+        raw_y = (
+            max(section.y1, section.y2) - 1 - dispersion
+            if section.flip_y
+            else min(section.y1, section.y2) - 1 + dispersion
+        )
+        return raw_x, raw_y
+
+    order_ids, coefficients = trace
+    return order_trace_annotations(
+        order_ids,
+        coefficients,
+        trace_shape=trace_shape,
+        image_shape=image_shape,
+        coordinate_mapper=canonical_to_raw,
+    )
 
 
 @router.get("/api/v1/products/{product_id}/preview")
@@ -1098,9 +1257,19 @@ async def product_preview(
                 hdul["SCI"].data if "SCI" in hdul else hdul[0].data,
                 dtype=np.float64,
             )
+            annotations: list[dict[str, object]] = []
+            if product.level == ProductLevel.L1 and product.calibration_set_id:
+                calibration_set = await session.get(
+                    CalibrationSet, product.calibration_set_id
+                )
+                if calibration_set is not None:
+                    annotations = _canonical_order_annotations(
+                        calibration_set, image.shape
+                    )
             return {
                 "product_id": product.id,
                 "level": product.level,
+                "order_annotations": annotations,
                 **_image_preview_payload(image),
             }
         if "SPECTRUM" in hdul:
@@ -1354,6 +1523,7 @@ async def state_stream(websocket: WebSocket, cursor: int = 0) -> None:
     try:
         await authenticate_identity(
             token=token,
+            session_token=websocket.cookies.get("sprite_session"),
             x_sprite_user=websocket.headers.get("x-sprite-user"),
             x_sprite_role=websocket.headers.get("x-sprite-role"),
         )

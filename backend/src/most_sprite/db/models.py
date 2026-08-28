@@ -431,6 +431,17 @@ class AuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class UserAccount(Base, TimestampMixin):
+    __tablename__ = "user_accounts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(String(128))
+    role: Mapped[str] = mapped_column(String(32), index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_preconfigured: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class InstrumentStateRecord(Base):
     __tablename__ = "instrument_state"
 

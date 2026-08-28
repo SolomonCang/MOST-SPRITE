@@ -8,6 +8,7 @@ import pytest
 from astropy.io import fits
 from most_sprite.calibration.bundle import (
     ESPaDOnSCalibrationBundle,
+    _json_hdu,
     read_calibration_bundle,
     write_calibration_bundle,
 )
@@ -35,6 +36,7 @@ from most_sprite.pipeline.wavelength import resample_common_grid
 from most_sprite.pipeline.wavelength.espadons import (
     _BOOTSTRAP_COEFFICIENTS,
     _features,
+    _nullable_per_order_rms,
 )
 
 
@@ -202,6 +204,17 @@ def test_olapa_wavelength_bootstrap_has_canonical_orientation_and_scale() -> Non
 
     assert np.all(np.diff(wavelength) > 0)
     assert np.allclose(wavelength, [651.6, 666.0, 678.3], atol=0.2)
+
+
+def test_wavelength_qc_uses_json_null_for_orders_without_lines() -> None:
+    assert _nullable_per_order_rms(
+        {42: 12.5, 22: float("nan"), 21: float("inf")}
+    ) == {"42": 12.5, "22": None, "21": None}
+
+
+def test_calibration_bundle_rejects_non_finite_json() -> None:
+    with pytest.raises(ValueError, match="Out of range float values"):
+        _json_hdu("QC", {"per_order_rms_m_s": {"22": float("nan")}})
 
 
 @pytest.mark.parametrize(

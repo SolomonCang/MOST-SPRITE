@@ -1,11 +1,12 @@
 import { Activity, ArrowLeft, Boxes, Database, Gauge, ShieldCheck, Telescope, type LucideIcon } from "lucide-react";
 import { useEffect } from "react";
-import { Link, Outlet, useOutletContext } from "react-router-dom";
+import { Link, Outlet, useLocation, useOutletContext } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
 import type { TranslationKey } from "../i18n/translations";
 import { useUtcClock } from "../lib/hooks";
 import type { Role } from "../lib/types";
 import type { ShellOutletContext } from "./AppShell";
+import { AccountMenu } from "./AccountMenu";
 import { PreferenceControls } from "./PreferenceControls";
 import { StatusBadge } from "./StatusBadge";
 
@@ -27,6 +28,7 @@ const roleKeys: Record<Role, TranslationKey> = {
 export function WorkspaceShell({ workspace }: { workspace: WorkspaceKind }) {
   const context = useOutletContext<ShellOutletContext>();
   const { t } = useI18n();
+  const location = useLocation();
   const utc = useUtcClock();
   const config = workspaceConfig[workspace];
   const Icon = config.icon;
@@ -36,8 +38,10 @@ export function WorkspaceShell({ workspace }: { workspace: WorkspaceKind }) {
   const statusLabel = workspace === "data" ? t("workspace.data.pipeline") : t("app.instrument");
 
   useEffect(() => {
-    document.title = `MOST-SPRITE · ${t(config.title)}`;
-  }, [config.title, t]);
+    document.title = location.pathname.endsWith("/spectrum")
+      ? `MOST-SPRITE · L3 · ${t("data.preview.spectrumTitle")}`
+      : `MOST-SPRITE · ${t(config.title)}`;
+  }, [config.title, location.pathname, t]);
 
   return (
     <div className={`workspace-shell workspace-shell-${workspace}`}>
@@ -55,8 +59,9 @@ export function WorkspaceShell({ workspace }: { workspace: WorkspaceKind }) {
         </div>
         <div className="workspace-actions">
           <div className="workspace-clock"><span>{t("common.utc")}</span><time>{utc.replace("T", " ").slice(0, 19)}</time></div>
-          <div className="workspace-user"><strong>{context.user?.display_name ?? t("app.connecting")}</strong><small>{context.user ? t(roleKeys[context.user.role]) : t("app.identityLoading")}</small></div>
+          <div className="workspace-user"><strong>{context.user.display_name}</strong><small>{t(roleKeys[context.user.role])}</small></div>
           <PreferenceControls />
+          <AccountMenu user={context.user} configuration={context.auth} busy={context.authBusy} onLogin={context.login} onLogout={context.logout} />
         </div>
       </header>
       <div className="workspace-context-strip">

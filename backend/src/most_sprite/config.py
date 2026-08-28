@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     grpc_port: int = 50051
     oidc_issuer: str | None = None
     oidc_audience: str | None = None
+    local_auth_secret: SecretStr | None = Field(default=None, min_length=32)
+    local_auth_default_username: str = "administrator"
+    local_auth_session_hours: int = Field(default=12, ge=1, le=168)
+    allow_legacy_dev_headers: bool = False
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://localhost:8080"]
     )
@@ -61,6 +65,10 @@ class Settings(BaseSettings):
                 raise ValueError("production requires OIDC issuer and audience")
             if self.auto_create_schema:
                 raise ValueError("production must run Alembic instead of auto-creating schema")
+        elif self.auth_mode == "dev" and self.local_auth_secret is None:
+            raise ValueError(
+                "development auth requires SPRITE_LOCAL_AUTH_SECRET with at least 32 characters"
+            )
         return self
 
     def prepare_runtime(self) -> None:

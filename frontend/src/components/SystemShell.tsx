@@ -6,6 +6,7 @@ import type { TranslationKey } from "../i18n/translations";
 import type { Role } from "../lib/types";
 import { useTheme } from "../theme/ThemeProvider";
 import type { ShellOutletContext } from "./AppShell";
+import { AccountMenu } from "./AccountMenu";
 import { PreferenceControls } from "./PreferenceControls";
 import { StatusBadge } from "./StatusBadge";
 
@@ -39,9 +40,10 @@ export function SystemShell() {
           <span className="system-simulation"><ShieldCheck size={14} />{t("app.simulation")}</span>
         </div>
         <div className="system-account">
-          <div className="identity-avatar">{context.user?.display_name.slice(0, 2).toUpperCase() ?? "--"}</div>
-          <div><strong>{context.user?.display_name ?? t("app.connecting")}</strong><small>{context.user ? t(roleKeys[context.user.role]) : t("app.identityLoading")}</small></div>
+          <div className="identity-avatar">{context.user.display_name.slice(0, 2).toUpperCase()}</div>
+          <div><strong>{context.user.display_name}</strong><small>{t(roleKeys[context.user.role])}</small></div>
           <PreferenceControls />
+          <AccountMenu user={context.user} configuration={context.auth} busy={context.authBusy} onLogin={context.login} onLogout={context.logout} />
         </div>
       </header>
       <main className="system-content"><Outlet context={context} /></main>

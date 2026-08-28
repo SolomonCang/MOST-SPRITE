@@ -37,6 +37,8 @@ services:
     environment: &backend-env
       SPRITE_APP_ENV: simulation
       SPRITE_AUTH_MODE: dev
+      SPRITE_LOCAL_AUTH_SECRET: ${SPRITE_LOCAL_AUTH_SECRET:-most-sprite-local-test-key-2026-change-me}
+      SPRITE_LOCAL_AUTH_DEFAULT_USERNAME: administrator
       SPRITE_DATABASE_URL: postgresql+asyncpg://sprite:sprite@postgres:5432/sprite
       SPRITE_REDIS_URL: redis://redis:6379/0
       SPRITE_DATA_ROOT: /data
@@ -170,10 +172,6 @@ services:
       args:
         VITE_API_URL: http://localhost:8000
         VITE_WS_URL: ws://localhost:8000
-        # The one-click stack is for testing, so its browser client uses the
-        # administrator role and can exercise every application workflow.
-        VITE_DEV_USER: compose-admin
-        VITE_DEV_ROLE: administrator
     restart: unless-stopped
     depends_on:
       api:

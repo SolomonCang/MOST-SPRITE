@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Box, CheckCircle2, ChevronRight, Download, FileLock2, GitBranch, Layers3, Search, Send, Undo2, XCircle } from "lucide-react";
+import { Box, CheckCircle2, ChevronRight, Download, ExternalLink, FileLock2, GitBranch, Layers3, Search, Send, Undo2, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { ESPaDOnSImportWizard } from "../components/ESPaDOnSImportWizard";
@@ -115,7 +115,7 @@ export function DataPage() {
           <ProcessingStageRail runId={run?.id} stages={stages.data} loading={stages.isLoading} />
         </Panel>
 
-        <Panel title={selectedProduct ? `${selectedProduct.level} · ${t("data.preview.title")}` : t("data.preview.title")} eyebrow={selectedProduct?.level === "QUICKLOOK" ? t("data.preview.quicklook") : t("data.preview.formal")} className="spectrum-panel" action={selectedProduct && <div className="product-ident"><StatusBadge value={selectedProduct.qc_flag} subtle /><code>{selectedProduct.sha256.slice(0, 12)}</code></div>}>
+        <Panel title={selectedProduct ? `${selectedProduct.level} · ${selectedProduct.level === "L3" ? t("data.preview.spectrumTitle") : t("data.preview.title")}` : t("data.preview.title")} eyebrow={selectedProduct?.level === "QUICKLOOK" ? t("data.preview.quicklook") : t("data.preview.formal")} className="spectrum-panel" action={selectedProduct && <div className="product-ident"><StatusBadge value={selectedProduct.qc_flag} subtle /><code>{selectedProduct.sha256.slice(0, 12)}</code></div>}>
           <ProductVisualization product={selectedProduct} preview={preview.data} loading={preview.isLoading} error={preview.isError} />
           {selectedProduct && (
             <>
@@ -129,6 +129,7 @@ export function DataPage() {
               </div>
               {selectedProduct.level === "L3" && <dl className="variant-meta"><div><dt>NORMSTAT</dt><dd>{String(selectedProduct.metadata.normalization ?? "—")}</dd></div><div><dt>SPECSYS</dt><dd>{String(selectedProduct.metadata.specsys ?? "—")}</dd></div><div><dt>WAVETYPE</dt><dd>{String(selectedProduct.metadata.wavelength_type ?? "—")}</dd></div><div><dt>POLCONT</dt><dd>{selectedProduct.metadata.polarization_continuum_removed === false ? "PRESERVED" : String(selectedProduct.metadata.polarization_continuum_removed ?? "—")}</dd></div></dl>}
               <div className="product-actions">
+                {selectedProduct.level === "L3" && <a className="button button-secondary" href={`/data/products/${selectedProduct.id}/spectrum`} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} />{t("data.preview.openWindow")}</a>}
                 <button className="button button-secondary" type="button" disabled={downloadMutation.isPending} onClick={() => downloadMutation.mutate(selectedProduct.id)}><Download size={15} />{downloadMutation.isPending ? t("data.product.downloading") : t("data.product.download")}</button>
                 {isAdministrator && selectedProduct.level === "L3" && (
                   <>

@@ -22,6 +22,79 @@ describe("ESPaDOnSImportWizard", () => {
       .toEqual({ SCIENCE: 2, THAR: 1 });
   });
 
+  it("previews every mounted FITS role from the inspection inventory", async () => {
+    const inspection: ImportInspection = {
+      id: "22000000-0000-4000-8000-000000000001",
+      root_id: "night",
+      relative_path: "preview",
+      instrument: "ESPADONS",
+      status: "SUCCEEDED",
+      manifest_sha256: "d".repeat(64),
+      inventory: [
+        { role: "BIAS", relative_path: "preview/001b.fits.fz" },
+        { role: "FLAT", relative_path: "preview/002f.fits.fz" },
+        { role: "THAR", relative_path: "preview/003c.fits.fz" },
+      ],
+      groups: [],
+      calibration_summary: {},
+      warnings: [],
+      error_code: null,
+      error_message: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+    };
+    vi.spyOn(api, "importInspections").mockResolvedValue([inspection]);
+    vi.spyOn(api, "imports").mockResolvedValue([]);
+    vi.spyOn(api, "calibrationRuns").mockResolvedValue([]);
+    vi.spyOn(api, "calibrationSets").mockResolvedValue([]);
+    vi.spyOn(api, "sequences").mockResolvedValue([]);
+    vi.spyOn(api, "processingRuns").mockResolvedValue([]);
+    const importArtifactPreview = vi.spyOn(api, "importArtifactPreview").mockImplementation(
+      async (inspectionId, relativePath) => ({
+        inspection_id: inspectionId,
+        relative_path: relativePath,
+        role: relativePath.includes("003c") ? "THAR" : relativePath.includes("002f") ? "FLAT" : "BIAS",
+        detector: "OLAPA",
+        shape: [4, 6],
+        preview_shape: [0, 0],
+        preview_reducer: "finite-max-pool-v1",
+        image: [],
+        minimum: 100,
+        maximum: 200,
+        median: 150,
+      }),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    renderWithPreferences(
+      <QueryClientProvider client={queryClient}>
+        <ESPaDOnSImportWizard
+          user={{
+            subject: "observer",
+            display_name: "Observer",
+            role: "observer",
+            auth_mode: "dev",
+          }}
+        />
+      </QueryClientProvider>,
+    );
+
+    const selector = await screen.findByLabelText("选择 FITS 数据（共 3 项）");
+    expect(selector).toHaveValue("preview/001b.fits.fz");
+    await waitFor(() => expect(importArtifactPreview).toHaveBeenCalledWith(
+      inspection.id,
+      "preview/001b.fits.fz",
+    ));
+
+    fireEvent.change(selector, { target: { value: "preview/003c.fits.fz" } });
+    await waitFor(() => expect(importArtifactPreview).toHaveBeenCalledWith(
+      inspection.id,
+      "preview/003c.fits.fz",
+    ));
+    expect(screen.getAllByText("THAR").length).toBeGreaterThan(0);
+  });
+
   it("closes the inspect, import, calibrate, approve, and process workflow", async () => {
     const inspections: ImportInspection[] = [];
     const batches: ImportBatch[] = [];
@@ -178,7 +251,7 @@ describe("ESPaDOnSImportWizard", () => {
     expect(await screen.findByText("0.0230 px")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("审批理由"), {
-      target: { value: "公开数据科学回归质控通过" },
+      target: { value: "可" },
     });
     fireEvent.click(screen.getByLabelText("我已检查并接受此标定集的全部警告"));
     fireEvent.click(screen.getByRole("button", { name: "批准标定集" }));

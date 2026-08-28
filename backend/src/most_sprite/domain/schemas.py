@@ -283,8 +283,16 @@ class CalibrationSetRead(ApiModel):
 
 
 class CalibrationSetApproval(ApiModel):
-    reason: str = Field(min_length=8, max_length=2048)
+    reason: str = Field(min_length=1, max_length=2048)
     accept_warnings: bool = False
+
+    @field_validator("reason")
+    @classmethod
+    def strip_reason(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("reason cannot be blank")
+        return value
 
 
 class ErrorEnvelope(ApiModel):
@@ -315,6 +323,23 @@ class CurrentUser(ApiModel):
     display_name: str
     role: Role
     auth_mode: Literal["dev", "oidc"]
+
+
+class UserAccountRead(ApiModel):
+    id: UUID
+    username: str
+    display_name: str
+    role: Role
+
+
+class AuthConfiguration(ApiModel):
+    auth_mode: Literal["dev", "oidc"]
+    accounts: list[UserAccountRead] = Field(default_factory=list)
+    default_account_id: UUID | None = None
+
+
+class LocalLoginRequest(ApiModel):
+    account_id: UUID
 
 
 class PreviewSeries(ApiModel):

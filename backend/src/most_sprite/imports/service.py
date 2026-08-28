@@ -116,6 +116,66 @@ def _candidate_files(root: Path, source: Path) -> list[tuple[Path, str]]:
     return result
 
 
+def resolve_inspection_artifact(
+    inspection: ImportInspection, relative_path: str
+) -> tuple[dict[str, Any], Path]:
+    """Resolve one inspected artifact without allowing the manifest to escape its root."""
+    record = next(
+        (
+            item
+            for item in inspection.inventory_json
+            if item.get("relative_path") == relative_path
+        ),
+        None,
+    )
+    if record is None:
+        raise SpriteError(
+            "IMPORT_ARTIFACT_NOT_FOUND",
+            "the requested artifact is not part of this inspection",
+            status_code=404,
+        )
+
+    settings = get_settings()
+    configured_root = settings.import_roots.get(inspection.root_id)
+    if configured_root is None:
+        raise SpriteError(
+            "IMPORT_ROOT_NOT_FOUND",
+            "the inspection import root is no longer configured",
+            status_code=404,
+            details={"root_id": inspection.root_id},
+        )
+    artifact_relative = Path(relative_path)
+    if artifact_relative.is_absolute() or ".." in artifact_relative.parts:
+        raise SpriteError(
+            "IMPORT_PATH_FORBIDDEN",
+            "the inspected artifact path is invalid",
+            status_code=422,
+        )
+    try:
+        root = configured_root.resolve(strict=True)
+        path = (root / artifact_relative).resolve(strict=True)
+    except OSError as exc:
+        raise SpriteError(
+            "IMPORT_ARTIFACT_UNAVAILABLE",
+            "the inspected artifact is no longer available on the mounted root",
+            status_code=410,
+        ) from exc
+    if root not in path.parents or not path.is_file():
+        raise SpriteError(
+            "IMPORT_PATH_FORBIDDEN",
+            "the inspected artifact escapes its configured import root",
+            status_code=422,
+        )
+    if path.stat().st_size != int(record["size"]):
+        raise SpriteError(
+            "SOURCE_CHANGED",
+            "the mounted artifact changed after inspection; inspect the directory again",
+            status_code=409,
+            details={"relative_path": relative_path},
+        )
+    return record, path
+
+
 def _manifest_digest(records: list[dict[str, Any]]) -> str:
     stable = [
         {

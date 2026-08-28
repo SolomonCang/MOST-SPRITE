@@ -47,7 +47,9 @@ def test_simulated_sequence_reaches_l3(
     expected_l3_columns: set[str],
 ) -> None:
     payload = {"target_name": f"SIM-{mode}", "mode": mode, "exposure_time": 0.1, "repeats": 1}
-    validation = api_client.post("/api/v1/sequences:validate", json=payload)
+    validation = api_client.post(
+        "/api/v1/sequences:validate", json=payload, headers=observer_headers
+    )
     assert validation.status_code == 200
     assert validation.json()["estimated_exposures"] == expected_exposures
     assert validation.json()["issues"][0]["code"] == "UNVERIFIED_CONFIGURATION"
@@ -361,7 +363,7 @@ def test_calibration_approval_and_publication_gates_are_idempotent(
     assert warning_rejected.json()["code"] == "CALIBRATION_WARNING_ACCEPTANCE_REQUIRED"
 
     approval_body = {
-        "reason": "science review completed",
+        "reason": "ok",
         "accept_warnings": True,
     }
     approval_headers = admin | {"Idempotency-Key": "approve-calset-0001"}

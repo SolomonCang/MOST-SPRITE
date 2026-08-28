@@ -36,6 +36,19 @@ export interface CurrentUser {
   auth_mode: "dev" | "oidc";
 }
 
+export interface UserAccount {
+  id: string;
+  username: string;
+  display_name: string;
+  role: Role;
+}
+
+export interface AuthConfiguration {
+  auth_mode: "dev" | "oidc";
+  accounts: UserAccount[];
+  default_account_id: string | null;
+}
+
 export interface ValidationIssue {
   code: string;
   message: string;
@@ -182,6 +195,21 @@ export interface ImportInspection {
   updated_at: string;
 }
 
+export interface ImportArtifactPreview {
+  inspection_id: string;
+  relative_path: string;
+  role: string;
+  detector?: string | null;
+  shape: number[];
+  preview_shape: number[];
+  preview_reducer: string;
+  image: Array<Array<number | null>>;
+  order_annotations?: OrderAnnotation[];
+  minimum: number;
+  maximum: number;
+  median: number;
+}
+
 export interface ImportBatch {
   id: string;
   inspection_id: string;
@@ -285,12 +313,18 @@ export interface Preview {
   preview_shape?: number[];
   preview_reducer?: string;
   image?: Array<Array<number | null>>;
+  order_annotations?: OrderAnnotation[];
   columns?: Record<string, Array<number | null>>;
   metadata?: Record<string, unknown>;
   minimum?: number;
   maximum?: number;
   median?: number;
   saturated_fraction?: number;
+}
+
+export interface OrderAnnotation {
+  order: number;
+  points: Array<[number, number]>;
 }
 
 export interface Alarm {

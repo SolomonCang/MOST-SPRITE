@@ -34,6 +34,7 @@ export default defineConfig({
       env: {
         SPRITE_APP_ENV: "simulation",
         SPRITE_AUTH_MODE: "dev",
+        SPRITE_LOCAL_AUTH_SECRET: "playwright-local-auth-key-2026-change-me",
         SPRITE_DATABASE_URL: "sqlite+aiosqlite:///./.runtime/playwright-v3.db",
         SPRITE_DATA_ROOT: ".runtime/playwright-v3-data",
         SPRITE_EMBEDDED_WORKERS: "true",

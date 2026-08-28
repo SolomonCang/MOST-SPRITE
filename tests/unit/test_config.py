@@ -32,6 +32,11 @@ def test_production_accepts_only_explicit_oidc_and_alembic_boundary() -> None:
         )
 
 
+def test_local_auth_requires_a_machine_key() -> None:
+    with pytest.raises(ValidationError, match="SPRITE_LOCAL_AUTH_SECRET"):
+        Settings(app_env="simulation", auth_mode="dev", local_auth_secret=None)
+
+
 def test_simulation_configuration_is_versioned_unverified_and_deterministic() -> None:
     configuration = default_instrument_configuration()
     assert configuration["version"] == "simulation-v1"

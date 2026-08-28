@@ -27,8 +27,9 @@ make start
 
 打开 `http://localhost:8080`。API、OpenAPI 和健康检查分别位于
 `http://localhost:8000`、`http://localhost:8000/docs` 和
-`http://localhost:8000/healthz`。当前测试阶段，Compose 明确使用开发管理员身份，客户端可访问
-全部应用工作流；该设置仅用于开发认证，不会授予宿主机 root 权限，也不会连接任何真实设备。
+`http://localhost:8000/healthz`。当前测试阶段，首次打开会使用预置的本机超级管理员账号，客户端可访问
+全部应用工作流；也可从右上角账户菜单切换为观测人员、仪器工程人员或数据处理人员，并可随时登出。
+这些账号仅用于开发认证，不会授予宿主机 root 权限，也不会连接任何真实设备。
 Compose 默认从仓库同级的
 `../MOST-SPRITE-testdata/cadc-cache/cadc-espadons-ad-leo-v1` 只读挂载公开测试数据；如果数据位于
 其他位置，可在启动前设置 `SPRITE_CADC_IMPORT_PATH=/absolute/path/to/dataset`。
@@ -56,8 +57,12 @@ make smoke-4k
 ```
 
 `make dev` 以 SQLite、进程内模拟设备和内嵌 worker 启动 API；前端可在另一个终端执行
-`cd frontend && pnpm dev`。开发请求使用显式的 `X-SPRITE-User` 与 `X-SPRITE-Role`。生产模式
-只有在 OIDC issuer、audience 已配置且关闭自动建表时才允许启动。
+`cd frontend && pnpm dev`。本机开发认证不需要账号密码：后端从
+`SPRITE_LOCAL_AUTH_SECRET` 读取至少 32 字符的本机密钥，浏览器只保存后端签发的 HttpOnly 会话，
+不会读取或传输密钥。默认预置账号为 `administrator`、`observer`、`instrument-engineer` 和
+`data-reducer`；可通过 `SPRITE_LOCAL_AUTH_DEFAULT_USERNAME` 更改首次默认登录账号。旧的身份请求头
+默认禁用，仅可用 `SPRITE_ALLOW_LEGACY_DEV_HEADERS=true` 为自动化兼容显式开启。生产模式只有在
+OIDC issuer、audience 已配置且关闭自动建表时才允许启动，本机账户选择接口在生产环境不可用。
 
 ## 数据与安全边界
 

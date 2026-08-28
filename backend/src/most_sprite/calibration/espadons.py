@@ -331,6 +331,33 @@ async def ensure_calibration_run(
     return run
 
 
+async def _record_calibration_failure(
+    run_id: str,
+    exc: Exception,
+    *,
+    fallback_code: str,
+) -> None:
+    code = exc.code if isinstance(exc, SpriteError) else fallback_code
+    async with session_scope() as session:
+        run = await session.get(CalibrationRun, run_id)
+        if run is None:
+            return
+        run.status = (
+            ProcessingStatus.WAITING_CALIBRATION
+            if code == "CALIBRATION_MISSING"
+            else ProcessingStatus.FAILED
+        )
+        run.error_code = code
+        run.error_message = str(exc)
+        run.updated_at = utcnow()
+        await emit_event(
+            session,
+            EventType.CALIBRATION_RUN_STATE_CHANGED,
+            correlation_id=run.id,
+            payload={"calibration_run_id": run.id, "status": run.status, "error": code},
+        )
+
+
 async def build_calibration_run(run_id: str) -> None:
     async with session_scope() as session:
         run = await session.get(CalibrationRun, run_id)
@@ -375,82 +402,76 @@ async def build_calibration_run(run_id: str) -> None:
             get_settings().data_root / "calibrations",
         )
     except Exception as exc:
+        await _record_calibration_failure(
+            run_id,
+            exc,
+            fallback_code="CALIBRATION_BUILD_FAILED",
+        )
+        return
+
+    try:
         async with session_scope() as session:
             run = await session.get(CalibrationRun, run_id)
             assert run is not None
-            code = getattr(exc, "code", "CALIBRATION_BUILD_FAILED")
-            run.status = (
-                ProcessingStatus.WAITING_CALIBRATION
-                if code == "CALIBRATION_MISSING"
-                else ProcessingStatus.FAILED
+            calibration_set = CalibrationSet(
+                calibration_run_id=run.id,
+                import_batch_id=run.import_batch_id,
+                instrument="ESPADONS",
+                detector="OLAPA",
+                observing_night=result.observing_night,
+                readout_mode=result.readout_mode,
+                status=ConfigurationStatus.UNVERIFIED,
+                calibration_hash=result.calibration_hash,
+                artifact_uri=str(result.path.resolve()),
+                qc_flag=result.qc_flag,
+                qc_json=result.qc,
+                warnings_json=result.warnings,
             )
-            run.error_code = code
-            run.error_message = str(exc)
+            session.add(calibration_set)
+            await session.flush()
+            for calibration_type in (
+                "MASTER_BIAS",
+                "MASTER_FLAT",
+                "TRACE_AB",
+                "SPATIAL_PROFILE_AB",
+                "FP_GEOMETRY",
+                "THAR_WAVELENGTH_AB",
+            ):
+                session.add(
+                    Calibration(
+                        calibration_type=calibration_type,
+                        uri=str(result.path.resolve()),
+                        checksum=result.sha256,
+                        status=ConfigurationStatus.UNVERIFIED,
+                        parameters_json={
+                            "instrument": "ESPADONS",
+                            "detector": "OLAPA",
+                            "observing_night": result.observing_night,
+                            "readout_mode": result.readout_mode,
+                            "parameter_version": run.parameter_version,
+                        },
+                        calibration_set_id=calibration_set.id,
+                    )
+                )
+            run.status = ProcessingStatus.SUCCEEDED
+            run.progress = 1.0
             run.updated_at = utcnow()
             await emit_event(
                 session,
-                EventType.CALIBRATION_RUN_STATE_CHANGED,
-                correlation_id=run.id,
-                payload={"calibration_run_id": run.id, "status": run.status, "error": code},
+                EventType.CALIBRATION_SET_STATE_CHANGED,
+                correlation_id=calibration_set.id,
+                payload={
+                    "calibration_run_id": run.id,
+                    "calibration_set_id": calibration_set.id,
+                    "status": calibration_set.status,
+                    "qc_flag": calibration_set.qc_flag,
+                },
             )
-        return
-
-    async with session_scope() as session:
-        run = await session.get(CalibrationRun, run_id)
-        assert run is not None
-        calibration_set = CalibrationSet(
-            calibration_run_id=run.id,
-            import_batch_id=run.import_batch_id,
-            instrument="ESPADONS",
-            detector="OLAPA",
-            observing_night=result.observing_night,
-            readout_mode=result.readout_mode,
-            status=ConfigurationStatus.UNVERIFIED,
-            calibration_hash=result.calibration_hash,
-            artifact_uri=str(result.path.resolve()),
-            qc_flag=result.qc_flag,
-            qc_json=result.qc,
-            warnings_json=result.warnings,
-        )
-        session.add(calibration_set)
-        await session.flush()
-        for calibration_type in (
-            "MASTER_BIAS",
-            "MASTER_FLAT",
-            "TRACE_AB",
-            "SPATIAL_PROFILE_AB",
-            "FP_GEOMETRY",
-            "THAR_WAVELENGTH_AB",
-        ):
-            session.add(
-                Calibration(
-                    calibration_type=calibration_type,
-                    uri=str(result.path.resolve()),
-                    checksum=result.sha256,
-                    status=ConfigurationStatus.UNVERIFIED,
-                    parameters_json={
-                        "instrument": "ESPADONS",
-                        "detector": "OLAPA",
-                        "observing_night": result.observing_night,
-                        "readout_mode": result.readout_mode,
-                        "parameter_version": run.parameter_version,
-                    },
-                    calibration_set_id=calibration_set.id,
-                )
-            )
-        run.status = ProcessingStatus.SUCCEEDED
-        run.progress = 1.0
-        run.updated_at = utcnow()
-        await emit_event(
-            session,
-            EventType.CALIBRATION_SET_STATE_CHANGED,
-            correlation_id=calibration_set.id,
-            payload={
-                "calibration_run_id": run.id,
-                "calibration_set_id": calibration_set.id,
-                "status": calibration_set.status,
-                "qc_flag": calibration_set.qc_flag,
-            },
+    except Exception as exc:
+        await _record_calibration_failure(
+            run_id,
+            exc,
+            fallback_code="CALIBRATION_PERSIST_FAILED",
         )
 
 

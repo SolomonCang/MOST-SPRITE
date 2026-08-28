@@ -174,6 +174,15 @@ def _expand_coefficients(
     return np.asarray([values.get(power, 0.0) for power in _powers(new_degree)])
 
 
+def _nullable_per_order_rms(
+    values: dict[int, float],
+) -> dict[str, float | None]:
+    return {
+        str(order): value if np.isfinite(value) else None
+        for order, value in values.items()
+    }
+
+
 def _ransac_fit(
     records: NDArray[np.float64],
     *,
@@ -406,7 +415,13 @@ def solve_espadons_thar(spectra: SpectrumSet) -> ESPaDOnSWavelengthCalibration:
         "wavelength_rms_m_s": rms_m_s,
         "identified_line_count": int(final_mask.sum()),
         "identified_order_count": len(used_orders),
-        "per_order_rms_m_s": {str(key): value for key, value in per_order_rms.items()},
+        # Orders without an accepted line are still represented by the global
+        # wavelength surface.  Keep the numerical NaN in WavelengthSolution/FITS,
+        # but use JSON null in QC so the payload is valid for PostgreSQL JSON.
+        "per_order_rms_m_s": _nullable_per_order_rms(per_order_rms),
+        "unidentified_orders": [
+            key for key, value in per_order_rms.items() if not np.isfinite(value)
+        ],
         "target_rms_m_s": 150.0,
         "warning_codes": warning_codes,
         "passed": rms_m_s <= 150.0,

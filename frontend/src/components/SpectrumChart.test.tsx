@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithPreferences } from "../test/render";
 import { SpectrumChart } from "./SpectrumChart";
@@ -17,7 +17,7 @@ describe("SpectrumChart", () => {
         series={["P", "N1", "N2"]}
       />,
     );
-    expect(screen.getByRole("img", { name: /光谱产品预览/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /数据产品预览/ })).toBeInTheDocument();
     expect(screen.getByText("P")).toBeInTheDocument();
     expect(screen.getByText("N1")).toBeInTheDocument();
     expect(screen.getByText("N2")).toBeInTheDocument();
@@ -28,6 +28,29 @@ describe("SpectrumChart", () => {
 
   it("shows a useful empty state for non-spectral products", () => {
     renderWithPreferences(<SpectrumChart series={["P"]} />);
-    expect(screen.getByText("选择 L2 或 L3 产品查看科学光谱")).toBeInTheDocument();
+    expect(screen.getByText("选择数据产品查看预览")).toBeInTheDocument();
+  });
+
+  it("zooms, resets, and exposes point inspection to the keyboard", () => {
+    renderWithPreferences(
+      <SpectrumChart
+        columns={{
+          WAVE: [500, 550, 600, 650, 700],
+          P: [0.001, 0.0015, 0.002, 0.0016, 0.0012],
+        }}
+        series={["P"]}
+        interactive
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "放大光谱" }));
+    expect(screen.getByTestId("spectrum-range")).toHaveTextContent("550.00–650.00 nm");
+
+    const chart = screen.getByRole("img", { name: /键盘加减号缩放/ });
+    fireEvent.keyDown(chart, { key: "ArrowRight" });
+    expect(screen.getByText("550.0000 nm")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "复位光谱范围" }));
+    expect(screen.getByTestId("spectrum-range")).toHaveTextContent("500.00–700.00 nm");
   });
 });

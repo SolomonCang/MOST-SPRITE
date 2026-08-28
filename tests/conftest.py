@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+
+os.environ.setdefault("SPRITE_LOCAL_AUTH_SECRET", "pytest-local-auth-key-2026-change-me")
 
 
 @pytest.fixture
@@ -14,6 +17,8 @@ def api_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Test
     data_root = tmp_path / "data"
     monkeypatch.setenv("SPRITE_APP_ENV", "simulation")
     monkeypatch.setenv("SPRITE_AUTH_MODE", "dev")
+    monkeypatch.setenv("SPRITE_LOCAL_AUTH_SECRET", "pytest-local-auth-key-2026-change-me")
+    monkeypatch.setenv("SPRITE_ALLOW_LEGACY_DEV_HEADERS", "true")
     monkeypatch.setenv("SPRITE_DATABASE_URL", f"sqlite+aiosqlite:///{database_path}")
     monkeypatch.setenv("SPRITE_DATA_ROOT", str(data_root))
     monkeypatch.setenv("SPRITE_EMBEDDED_WORKERS", "true")

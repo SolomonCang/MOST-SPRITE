@@ -32,7 +32,13 @@ class ESPaDOnSCalibrationBundle:
 
 
 def _json_hdu(name: str, value: object) -> fits.BinTableHDU:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+    encoded = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+        allow_nan=False,
+    )
     width = max(1, len(encoded.encode("utf-8")))
     return fits.BinTableHDU.from_columns(
         [fits.Column(name="JSON", format=f"{width}A", array=[encoded])], name=name

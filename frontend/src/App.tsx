@@ -7,6 +7,7 @@ import { DataPage } from "./pages/DataPage";
 import { EngineeringPage } from "./pages/EngineeringPage";
 import { ObservePage } from "./pages/ObservePage";
 import { ProcessingStagePage } from "./pages/ProcessingStagePage";
+import { SpectrumViewerPage } from "./pages/SpectrumViewerPage";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="data" element={<WorkspaceShell workspace="data" />}>
           <Route index element={<DataPage />} />
           <Route path="runs/:runId/stages/:stageKey" element={<ProcessingStagePage />} />
+          <Route path="products/:productId/spectrum" element={<SpectrumViewerPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>

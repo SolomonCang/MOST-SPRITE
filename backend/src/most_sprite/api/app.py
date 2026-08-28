@@ -12,6 +12,8 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_
 
 from most_sprite.api.routes import router
 from most_sprite.api.runtime import Runtime
+from most_sprite.auth.accounts import ensure_preconfigured_accounts
+from most_sprite.auth.routes import router as auth_router
 from most_sprite.config import get_settings
 from most_sprite.configuration import ensure_default_config
 from most_sprite.db.session import dispose_database, init_database, session_scope
@@ -31,6 +33,7 @@ async def lifespan(app: FastAPI):
     settings.prepare_runtime()
     await init_database()
     async with session_scope() as session:
+        await ensure_preconfigured_accounts(session)
         await ensure_default_config(session)
     runtime = Runtime.build()
     app.state.runtime = runtime
@@ -97,6 +100,7 @@ def create_app() -> FastAPI:
     async def metrics() -> Response:
         return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
+    app.include_router(auth_router)
     app.include_router(router)
     return app
 

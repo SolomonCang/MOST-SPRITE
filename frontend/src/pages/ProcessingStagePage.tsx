@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Box, Download, FileLock2, GitBranch, Layers3 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Box, Download, ExternalLink, FileLock2, GitBranch, Layers3 } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { LineageView } from "../components/LineageView";
 import { Panel } from "../components/Panel";
@@ -72,9 +72,9 @@ export function ProcessingStagePage() {
           </dl>
         </Panel>
 
-        <Panel title={product ? `${product.level} · ${t("data.stageDetail.preview")}` : t("data.stageDetail.preview")} eyebrow={stage.preview_kind === "image" ? t("data.stages.image") : t("data.stages.spectrum")} className="stage-preview-panel" action={product && <div className="product-ident"><StatusBadge value={product.qc_flag} subtle /><code>{product.sha256.slice(0, 12)}</code></div>}>
+        <Panel title={product ? `${product.level} · ${product.level === "L3" ? t("data.preview.spectrumTitle") : t("data.stageDetail.preview")}` : t("data.stageDetail.preview")} eyebrow={stage.preview_kind === "image" ? t("data.stages.image") : t("data.stages.spectrum")} className="stage-preview-panel" action={product && <div className="product-ident"><StatusBadge value={product.qc_flag} subtle /><code>{product.sha256.slice(0, 12)}</code></div>}>
           <ProductVisualization product={product} preview={preview.data} loading={preview.isLoading} error={preview.isError} />
-          {product && <><div className="product-meta"><span><Box size={15} />{(product.size / 1024).toFixed(1)} KiB</span><span><Layers3 size={15} />{product.schema_version}</span><span><FileLock2 size={15} />{t("common.immutable")}</span>{product.instrument && <span>{product.instrument} · {product.detector_profile ?? "—"}</span>}<time>{formatUtc(product.created_at, true)} UTC</time></div><div className="product-actions"><button className="button button-secondary" type="button" disabled={downloadMutation.isPending} onClick={() => downloadMutation.mutate(product.id)}><Download size={15} />{downloadMutation.isPending ? t("data.product.downloading") : t("data.product.download")}</button></div></>}
+          {product && <><div className="product-meta"><span><Box size={15} />{(product.size / 1024).toFixed(1)} KiB</span><span><Layers3 size={15} />{product.schema_version}</span><span><FileLock2 size={15} />{t("common.immutable")}</span>{product.instrument && <span>{product.instrument} · {product.detector_profile ?? "—"}</span>}<time>{formatUtc(product.created_at, true)} UTC</time></div><div className="product-actions">{product.level === "L3" && <a className="button button-secondary" href={`/data/products/${product.id}/spectrum`} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} />{t("data.preview.openWindow")}</a>}<button className="button button-secondary" type="button" disabled={downloadMutation.isPending} onClick={() => downloadMutation.mutate(product.id)}><Download size={15} />{downloadMutation.isPending ? t("data.product.downloading") : t("data.product.download")}</button></div></>}
           {downloadMutation.isError && <div className="query-error" role="alert">{downloadMutation.error.message}</div>}
         </Panel>
 

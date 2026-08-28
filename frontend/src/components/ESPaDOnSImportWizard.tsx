@@ -18,6 +18,7 @@ import type {
   ImportInspection,
   Sequence,
 } from "../lib/types";
+import { Heatmap } from "./Heatmap";
 import { Panel } from "./Panel";
 import { StatusBadge } from "./StatusBadge";
 
@@ -77,6 +78,7 @@ export function ESPaDOnSImportWizard({ user, onSequenceSelect }: WizardProps) {
   const [relativePath, setRelativePath] = useState(".");
   const [parameterVersion, setParameterVersion] = useState("espadons-olapa-v1");
   const [inspectionId, setInspectionId] = useState<string>();
+  const [previewPath, setPreviewPath] = useState<string>();
   const [selectedSequenceIds, setSelectedSequenceIds] = useState<string[]>([]);
   const [approvalReason, setApprovalReason] = useState("");
   const [acceptWarnings, setAcceptWarnings] = useState(false);
@@ -143,6 +145,28 @@ export function ESPaDOnSImportWizard({ user, onSequenceSelect }: WizardProps) {
     () => countInventory(inspection?.inventory ?? []),
     [inspection?.inventory],
   );
+  const previewArtifacts = useMemo(
+    () => (inspection?.inventory ?? []).filter(
+      (item): item is Record<string, unknown> & { relative_path: string } =>
+        typeof item.relative_path === "string",
+    ),
+    [inspection?.inventory],
+  );
+  useEffect(() => {
+    setPreviewPath((current) => (
+      current && previewArtifacts.some((item) => item.relative_path === current)
+        ? current
+        : previewArtifacts[0]?.relative_path
+    ));
+  }, [inspection?.id, previewArtifacts]);
+  const selectedArtifact = previewArtifacts.find(
+    (item) => item.relative_path === previewPath,
+  );
+  const artifactPreview = useQuery({
+    queryKey: ["import-artifact-preview", inspection?.id, previewPath, calibrationSet?.id],
+    queryFn: () => api.importArtifactPreview(inspection!.id, previewPath!),
+    enabled: Boolean(inspection?.id && previewPath),
+  });
   const processingBySequence = useMemo(() => new Map(
     (processingRuns.data ?? [])
       .filter((item) => !calibrationSet || item.calibration_set_id === calibrationSet.id)
@@ -282,10 +306,50 @@ export function ESPaDOnSImportWizard({ user, onSequenceSelect }: WizardProps) {
           )}
         </section>
 
-        <section className="wizard-card">
+        <section className="wizard-card wizard-preview-card">
           <header><FileCheck2 size={18} /><div><b>02</b><strong>{t("data.import.previewTitle")}</strong></div></header>
+          {previewArtifacts.length ? (
+            <>
+              <label className="wizard-preview-select">
+                <span>{t("data.import.previewArtifact", { count: previewArtifacts.length })}</span>
+                <select value={previewPath ?? ""} onChange={(event) => setPreviewPath(event.target.value)}>
+                  {previewArtifacts.map((artifact) => (
+                    <option key={artifact.relative_path} value={artifact.relative_path}>
+                      {String(artifact.role ?? "UNKNOWN")} · {artifact.relative_path.split("/").at(-1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="mounted-preview" aria-live="polite">
+                <div className="mounted-preview-header">
+                  <StatusBadge value={String(selectedArtifact?.role ?? "UNKNOWN")} subtle />
+                  <code title={previewPath}>{previewPath}</code>
+                </div>
+                {artifactPreview.isLoading && <div className="visualization-state">{t("common.loading")}</div>}
+                {artifactPreview.isError && <div className="visualization-state visualization-error">{errorText(artifactPreview.error)}</div>}
+                {artifactPreview.data && (
+                  <>
+                    <Heatmap
+                      values={artifactPreview.data.image}
+                      label={`${artifactPreview.data.role} · ${t("data.import.previewImage")}`}
+                      emptyLabel={t("data.import.previewUnavailable")}
+                      scaleLabel={t("observe.quicklook.scale")}
+                      unit={t("observe.quicklook.unit")}
+                      orderAnnotations={artifactPreview.data.order_annotations}
+                    />
+                    <div className="mounted-preview-stats">
+                      <span>{t("data.stageDetail.shape")} <b>{artifactPreview.data.shape.join(" × ")}</b></span>
+                      <span>MIN <b>{artifactPreview.data.minimum.toFixed(2)}</b></span>
+                      <span>MEDIAN <b>{artifactPreview.data.median.toFixed(2)}</b></span>
+                      <span>MAX <b>{artifactPreview.data.maximum.toFixed(2)}</b></span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          ) : <p className="wizard-empty">{t("data.import.previewEmpty")}</p>}
           {inspection?.groups.length ? (
-            <ul className="group-preview">{inspection.groups.map((group, index) => <li key={String(group.group_key ?? index)}><StatusBadge value={String(group.mode ?? "POL")} subtle /><span>{groupLabel(group)}</span><code>{String(group.group_key ?? "")}</code></li>)}</ul>
+            <><p className="wizard-section-label">{t("data.import.sequenceGroups")}</p><ul className="group-preview">{inspection.groups.map((group, index) => <li key={String(group.group_key ?? index)}><StatusBadge value={String(group.mode ?? "POL")} subtle /><span>{groupLabel(group)}</span><code>{String(group.group_key ?? "")}</code></li>)}</ul></>
           ) : <p className="wizard-empty">{t("data.import.noGroups")}</p>}
           {inspection?.warnings.length ? (
             <ul className="wizard-warnings">{inspection.warnings.map((warning, index) => <li key={String(warning.code ?? index)}><TriangleAlert size={14} /><div><strong>{String(warning.code ?? "WARNING")}</strong><span>{String(warning.message ?? "")}</span></div></li>)}</ul>
@@ -311,7 +375,7 @@ export function ESPaDOnSImportWizard({ user, onSequenceSelect }: WizardProps) {
                 <div className="approval-form">
                   <label><span>{t("data.import.approvalReason")}</span><textarea value={approvalReason} onChange={(event) => setApprovalReason(event.target.value)} placeholder={t("data.import.approvalPlaceholder")} disabled={!isAdministrator || isBusy} /></label>
                   {hasCalibrationWarnings && <label className="checkbox-field"><input type="checkbox" checked={acceptWarnings} onChange={(event) => setAcceptWarnings(event.target.checked)} disabled={!isAdministrator || isBusy} /><span>{t("data.import.acceptWarnings")}</span></label>}
-                  <button className="button button-primary button-wide" type="button" disabled={!isAdministrator || approvalReason.trim().length < 8 || (hasCalibrationWarnings && !acceptWarnings) || isBusy} onClick={() => approvalMutation.mutate()}><ShieldCheck size={15} />{approvalMutation.isPending ? t("data.import.approving") : t("data.import.approve")}</button>
+                  <button className="button button-primary button-wide" type="button" disabled={!isAdministrator || !approvalReason.trim() || (hasCalibrationWarnings && !acceptWarnings) || isBusy} onClick={() => approvalMutation.mutate()}><ShieldCheck size={15} />{approvalMutation.isPending ? t("data.import.approving") : t("data.import.approve")}</button>
                 </div>
               )}
               {calibrationSet.status === "APPROVED" && <p className="wizard-pass"><Check size={14} />{t("data.import.approvedBy", { user: calibrationSet.approved_by ?? "—" })}</p>}

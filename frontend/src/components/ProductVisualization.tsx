@@ -30,6 +30,7 @@ export function ProductVisualization({ product, preview, loading = false, error 
           emptyLabel={t("observe.quicklook.empty")}
           scaleLabel={t("observe.quicklook.scale")}
           unit={t("observe.quicklook.unit")}
+          orderAnnotations={preview.order_annotations}
         />
         <div className="image-stat-strip">
           <span>{t("data.stageDetail.shape")} <b>{preview.shape?.join(" × ") ?? "—"}</b></span>
@@ -53,8 +54,8 @@ export function ProductVisualization({ product, preview, loading = false, error 
   return (
     <div className="science-chart-stack">
       {product.level === "L2" && <><SpectrumChart columns={preview.columns} series={["FLUX"]} /><SpectrumChart columns={preview.columns} series={["VAR"]} compact /></>}
-      {product.level === "L3" && product.mode !== "NONPOL" && <><SpectrumChart columns={preview.columns} series={["I"]} compact /><SpectrumChart columns={preview.columns} series={["P", "N1", "N2"]} /><SpectrumChart columns={preview.columns} series={["ERR_P", "ERR_N1", "ERR_N2"]} compact /></>}
-      {product.level === "L3" && product.mode === "NONPOL" && <><SpectrumChart columns={preview.columns} series={["TARGET", "SKY", "I"]} /><SpectrumChart columns={preview.columns} series={["ALPHA"]} compact /><SpectrumChart columns={preview.columns} series={["ERR_TARGET", "ERR_SKY", "ERR_I"]} compact /></>}
+      {product.level === "L3" && product.mode !== "NONPOL" && <><SpectrumChart columns={preview.columns} series={["I"]} compact interactive /><SpectrumChart columns={preview.columns} series={["P", "N1", "N2"]} interactive /><SpectrumChart columns={preview.columns} series={["ERR_P", "ERR_N1", "ERR_N2"]} compact interactive /></>}
+      {product.level === "L3" && product.mode === "NONPOL" && <><SpectrumChart columns={preview.columns} series={["TARGET", "SKY", "I"]} interactive /><SpectrumChart columns={preview.columns} series={["ALPHA"]} compact interactive /><SpectrumChart columns={preview.columns} series={["ERR_TARGET", "ERR_SKY", "ERR_I"]} compact interactive /></>}
       {product.level !== "L2" && product.level !== "L3" && <SpectrumChart columns={preview.columns} series={["FLUX", "I"]} />}
       {finiteDqPoints > 0 && <div className="dq-summary"><span>DQ</span><strong>{flaggedPoints} / {finiteDqPoints}</strong><div className="progress-track"><i style={{ width: `${(flaggedPoints / finiteDqPoints) * 100}%` }} /></div><small>{t("data.preview.dqSummary")}</small></div>}
     </div>

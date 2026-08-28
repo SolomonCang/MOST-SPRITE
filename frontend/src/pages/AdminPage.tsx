@@ -10,7 +10,7 @@ export function AdminPage() {
   const { user } = useOutletContext<{ user?: CurrentUser }>();
   const { t } = useI18n();
   const cards = [
-    { title: t("admin.identity.title"), heading: t("admin.identity.heading"), copy: t("admin.identity.copy"), icon: KeyRound, status: "OIDC" },
+    { title: t("admin.identity.title"), heading: t("admin.identity.heading"), copy: t("admin.identity.copy"), icon: KeyRound, status: user?.auth_mode === "dev" ? "LOCAL KEY" : "OIDC" },
     { title: t("admin.config.title"), heading: t("admin.config.heading"), copy: t("admin.config.copy"), icon: ShieldAlert, status: "UNVERIFIED" },
     { title: t("admin.health.title"), heading: t("admin.health.heading"), copy: t("admin.health.copy"), icon: ServerCog, status: "HEALTHY" },
     { title: t("admin.audit.title"), heading: t("admin.audit.heading"), copy: t("admin.audit.copy"), icon: FileClock, status: "APPEND_ONLY" },

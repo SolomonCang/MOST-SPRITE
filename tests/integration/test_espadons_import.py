@@ -46,6 +46,29 @@ def _write_group(directory: Path, *, first_id: int) -> None:
         ).writeto(path)
 
 
+def _write_calibration_frame(directory: Path, *, role: str, filename: str) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    values = np.arange(24, dtype=np.uint16).reshape(4, 6) + {
+        "BIAS": 100,
+        "FLAT": 1_000,
+        "THAR": 10_000,
+    }[role]
+    header = fits.Header(
+        {
+            "DETECTOR": "OLAPA",
+            "OBSTYPE": role,
+            "OBJECT": role,
+            "DATE-OBS": "2026-08-27",
+            "UTC-OBS": "02:00:00",
+            "DATASEC": "[1:4,1:4]",
+            "BIASSEC": "[5:6,1:4]",
+        }
+    )
+    fits.HDUList([fits.PrimaryHDU(), fits.CompImageHDU(values, header=header)]).writeto(
+        directory / filename
+    )
+
+
 @pytest.fixture
 def import_api(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -59,6 +82,8 @@ def import_api(
 
     monkeypatch.setenv("SPRITE_APP_ENV", "simulation")
     monkeypatch.setenv("SPRITE_AUTH_MODE", "dev")
+    monkeypatch.setenv("SPRITE_LOCAL_AUTH_SECRET", "pytest-local-auth-key-2026-change-me")
+    monkeypatch.setenv("SPRITE_ALLOW_LEGACY_DEV_HEADERS", "true")
     monkeypatch.setenv(
         "SPRITE_DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'sprite-import.db'}"
     )
@@ -166,6 +191,47 @@ def test_directory_inspection_and_import_are_secure_atomic_and_idempotent(
         assert hdul[0].header["INSTRUME"] == "ESPADONS"
         assert hdul[0].header["DETECTOR"] == "OLAPA"
         assert hdul[0].header["SIMULATE"] is False
+
+
+def test_every_mounted_detector_frame_role_has_an_image_preview(
+    import_api: tuple[TestClient, Path],
+) -> None:
+    client, import_root = import_api
+    preview_directory = import_root / "preview"
+    _write_calibration_frame(preview_directory, role="BIAS", filename="biasb.fits.fz")
+    _write_calibration_frame(preview_directory, role="FLAT", filename="flatf.fits.fz")
+    _write_calibration_frame(preview_directory, role="THAR", filename="tharc.fits.fz")
+
+    inspected = client.post(
+        "/api/v1/import-inspections",
+        json={"root_id": "night", "relative_path": "preview", "instrument": "ESPADONS"},
+        headers=_headers("inspect-preview-0001"),
+    )
+    assert inspected.status_code == 202, inspected.text
+    inspection = inspected.json()
+
+    inventory_by_role = {item["role"]: item for item in inspection["inventory"]}
+    assert set(inventory_by_role) == {"BIAS", "FLAT", "THAR"}
+    for role in ("BIAS", "FLAT", "THAR"):
+        preview = client.get(
+            f"/api/v1/import-inspections/{inspection['id']}/preview",
+            params={"relative_path": inventory_by_role[role]["relative_path"]},
+            headers=_headers(f"preview-{role.lower()}-0001", role="observer"),
+        )
+        assert preview.status_code == 200, preview.text
+        payload = preview.json()
+        assert payload["role"] == role
+        assert payload["shape"] == [4, 6]
+        assert payload["preview_shape"] == [4, 6]
+        assert len(payload["image"]) == 4
+
+    missing = client.get(
+        f"/api/v1/import-inspections/{inspection['id']}/preview",
+        params={"relative_path": "preview/not-in-manifest.fits"},
+        headers=_headers("preview-missing-0001", role="observer"),
+    )
+    assert missing.status_code == 404
+    assert missing.json()["code"] == "IMPORT_ARTIFACT_NOT_FOUND"
 
 
 @pytest.mark.parametrize("relative_path", ["../outside", "/tmp"])
