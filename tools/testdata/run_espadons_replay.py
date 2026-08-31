@@ -305,6 +305,7 @@ def main() -> None:
         {
             "SPRITE_APP_ENV": "test",
             "SPRITE_AUTH_MODE": "dev",
+            "SPRITE_LOCAL_AUTH_SECRET": "cadc-replay-local-auth-secret-placeholder",
             "SPRITE_DATABASE_URL": f"sqlite+aiosqlite:///{work_dir / 'sprite.db'}",
             "SPRITE_DATA_ROOT": str(work_dir / "data"),
             "SPRITE_AUTO_CREATE_SCHEMA": "true",
